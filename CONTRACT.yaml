@@ -91,9 +91,9 @@ tasks:
   - id: H-05
     title: Demonstration of the tool on every test dataset
     points: "10 - Tool Design: a clear demonstration of the tool, using test datasets"
-    status: todo
-    owner: ""
-    started_at: ""
+    status: in_progress
+    owner: "jiangyijia"
+    started_at: "2026-10-16 17:42"
     owns: ["demo/", "app/frontend/"]
     definition_of_done: >
       demo/README.md walks through each data/ CSV with the exact command or
