@@ -25,9 +25,9 @@
 | H-02 | `data/` + codebook | **done** | A（已入库） |
 | H-03 | `app/qc.py` + pytest | **done** | B · Percy（`3fb5451`） |
 | H-04 | FastAPI 接 `qc.py` | **done** | B · Percy（`bca5df7`） |
-| H-05 | demo 走查每个 CSV | **todo / in progress ← A** | A · jiangyijia |
+| H-05 | demo 走查每个 CSV | **in_progress**（本地已验收；差 live URL + 线上 4 条 POST） | A · jiangyijia |
 | H-06 | Posit Connect 部署 | **done** | B · Percy（Actions #3 绿；`/docs` HTTP 200） |
-| H-07 | README | **todo ← A 现在做**（写入 live URL） | A 主笔，B 补测 |
+| H-07 | README | **in_progress**（`app/README.md` 已完成；差根 `README.md` + live URL） | A 主笔，B 补测 |
 | H-08 | 公开 repo + Devpost | todo | 全组 |
 
 ---
