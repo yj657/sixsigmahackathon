@@ -30,6 +30,7 @@
 | H-06 | Posit Connect 部署 | **done** | B · Percy |
 | H-07 | README | **done** | A + Percy（根 README 已是工具页） |
 | H-08 | 公开 repo + Devpost | **todo ← 下一步** | 全组 |
+| UI | React `app/frontend/` | **done（本地）** | B · Percy — 默认真连 Connect API；可选再部署 static |
 
 ---
 

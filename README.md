@@ -46,7 +46,18 @@ codebook: [`data/README.md`](data/README.md) · design: [`SPEC.md`](SPEC.md).
 
 ---
 
-## Run locally (one path)
+## Technician UI (React)
+
+```bash
+cd app/frontend
+npm install
+npm run dev
+```
+
+Defaults to the live Connect API. For a local API: `VITE_API_URL=http://127.0.0.1:8000 npm run dev`.
+Details: [`app/frontend/README.md`](app/frontend/README.md).
+
+## Run locally (API)
 
 From the repo root:
 
