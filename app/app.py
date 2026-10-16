@@ -5,7 +5,6 @@ Statistics live in qc.py — this file only parses input and returns JSON.
 
 from __future__ import annotations
 
-import csv
 from pathlib import Path
 from typing import List
 
@@ -14,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from qc import analyze_fleet
+from qc import analyze_fleet, load_lifetime_csv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
@@ -78,15 +77,8 @@ async def analyze_file(
     if not path.is_file():
         raise HTTPException(status_code=404, detail=f"data file not found: {safe}")
 
-    times: List[float] = []
-    failed: List[int] = []
-    with path.open(newline="") as fh:
-        reader = csv.DictReader(fh)
-        for row in reader:
-            times.append(float(row["time_hours"]))
-            failed.append(int(row["failed"]))
-
     try:
+        times, failed = load_lifetime_csv(path)
         result = analyze_fleet(times, failed, plan_hours=plan_hours, m=m)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

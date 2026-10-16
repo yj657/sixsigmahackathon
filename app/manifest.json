@@ -13,24 +13,32 @@
       "package_file": "requirements.txt"
     }
   },
+  "environment": {
+    "python": {
+      "requires": "~=3.11.0"
+    }
+  },
   "files": {
     "requirements.txt": {
       "checksum": "fb6ca0e0645a9cadf5bc9d79fb94024c"
     },
+    ".python-version": {
+      "checksum": "c0479ff484dacd51dc5ba0461b16b9bf"
+    },
     "README.md": {
-      "checksum": "66f667a15dce4442af951417b6e52be0"
+      "checksum": "5194fdf5eb06dc477fc496efc1ede0eb"
     },
     "app.py": {
-      "checksum": "f62f4fb54fc9f8b2bb8ed9ca95b09eef"
+      "checksum": "176d138d9432c9fccd6c96d6c7469740"
     },
     "deployme.sh": {
       "checksum": "870e894f03e12728afae12fb7f6fd3f4"
     },
     "manifestme.sh": {
-      "checksum": "b26a69801d67b3ea636c4627bd52be73"
+      "checksum": "a7f810cdfd21384106d7c0d1ceea307e"
     },
     "qc.py": {
-      "checksum": "5c9fec678ce42621de59585f1ea88607"
+      "checksum": "6afb8c8afe460a5c240762d445e6df9d"
     },
     "testme.sh": {
       "checksum": "09cd6f332eadbdc4e09518c97adb7cde"

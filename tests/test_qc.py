@@ -1,4 +1,4 @@
-"""Known-answer and degenerate tests for Weibull fleet reliability (SPEC §4)."""
+"""Known-answer, CSV, and validation tests for Weibull fleet reliability (SPEC §4)."""
 
 import math
 from pathlib import Path
@@ -6,15 +6,28 @@ from pathlib import Path
 import pytest
 
 from app.qc import (
+    analyze_fleet,
     b10_life,
+    coerce_time_hours,
     fit_weibull_scale,
     maintenance_call,
+    validate_lifetime_sample,
     weibull_hazard,
     weibull_mttf,
     weibull_reliability,
 )
 
 DATA = Path(__file__).resolve().parents[1] / "data"
+
+
+def _load_csv(name: str):
+    rows = (DATA / name).read_text().strip().splitlines()[1:]
+    times, failed = [], []
+    for row in rows:
+        _, t, f = row.split(",")
+        times.append(float(t))
+        failed.append(int(f))
+    return times, failed
 
 
 def test_known_answer_a_closed_form():
@@ -36,26 +49,97 @@ def test_known_answer_b_mle_right_censored():
     assert weibull_reliability(100.0, c_hat, m=2.0) == pytest.approx(0.789460, abs=1e-5)
 
 
-def test_known_answer_b_from_csv():
-    """wearout_baseline.csv matches known-answer B."""
-    rows = (DATA / "wearout_baseline.csv").read_text().strip().splitlines()[1:]
-    times, failed = [], []
-    for row in rows:
-        _, t, f = row.split(",")
-        times.append(float(t))
-        failed.append(int(f))
+def test_csv_wearout_baseline_known_b():
+    times, failed = _load_csv("wearout_baseline.csv")
+    out = analyze_fleet(times, failed, plan_hours=100.0, m=2.0)
+    assert out["c_hat"] == pytest.approx(math.sqrt(42300.0), abs=1e-6)
+    assert out["r"] == 3
+    assert out["n"] == 5
+    assert out["call"] == "maintain now"
+
+
+def test_csv_early_wearout_maintain_now():
+    """Shorter lives: B10 and R(100) force maintain now (data/README)."""
+    times, failed = _load_csv("early_wearout.csv")
+    # Hand check: sum t^2 = 16350, r=4 → c = sqrt(4087.5)
     c_hat = fit_weibull_scale(times, failed, m=2.0)
-    assert c_hat == pytest.approx(math.sqrt(42300.0), abs=1e-6)
+    assert c_hat == pytest.approx(math.sqrt(16350.0 / 4.0), abs=1e-9)
+    out = analyze_fleet(times, failed, plan_hours=100.0, m=2.0)
+    assert out["r"] == 4
+    assert out["n"] == 6
+    assert out["call"] == "maintain now"
+    assert out["B10"] < 100.0
+    assert out["R_plan"] < 0.90
 
 
-def test_degenerate_all_censored_raises():
-    """r=0 must error clearly — never return inf or a fake scale."""
+def test_csv_edge_all_censored_errors():
+    times, failed = _load_csv("edge_all_censored.csv")
     with pytest.raises(ValueError, match="at least one failure"):
-        fit_weibull_scale([80.0, 90.0, 100.0], [0, 0, 0], m=2.0)
+        fit_weibull_scale(times, failed, m=2.0)
+
+
+def test_n_equals_one_single_failure():
+    """n=1 with one failure: MLE is defined, c_hat = t."""
+    assert fit_weibull_scale([100.0], [1], m=2.0) == pytest.approx(100.0)
+    out = analyze_fleet([100.0], [1], plan_hours=100.0, m=2.0)
+    assert out["n"] == 1
+    assert out["r"] == 1
+    assert math.isfinite(out["c_hat"])
+    assert out["call"] in ("maintain now", "ok to fly")
+
+
+def test_n_equals_one_censored_only_errors():
+    with pytest.raises(ValueError, match="at least one failure"):
+        fit_weibull_scale([100.0], [0], m=2.0)
+
+
+def test_constant_failure_times_finite():
+    """Constant data with failures: finite scale, never inf."""
+    times = [50.0, 50.0, 50.0]
+    failed = [1, 1, 1]
+    c_hat = fit_weibull_scale(times, failed, m=2.0)
+    assert c_hat == pytest.approx(50.0)
+    assert math.isfinite(c_hat)
+    assert not math.isinf(c_hat)
+
+
+def test_missing_values_rejected():
+    with pytest.raises(ValueError, match="missing|must be"):
+        fit_weibull_scale([100.0, None], [1, 0], m=2.0)
+    with pytest.raises(ValueError, match="missing|must be"):
+        fit_weibull_scale([100.0, ""], [1, 0], m=2.0)
+    with pytest.raises(ValueError, match="missing|must be"):
+        validate_lifetime_sample([100.0], [None])
+
+
+def test_nan_time_rejected():
+    with pytest.raises(ValueError, match="finite"):
+        fit_weibull_scale([100.0, float("nan")], [1, 0], m=2.0)
+    with pytest.raises(ValueError, match="finite"):
+        coerce_time_hours(float("nan"))
+
+
+def test_nan_scale_does_not_say_ok_to_fly():
+    """Regression: NaN c used to fall through comparisons → 'ok to fly'."""
+    with pytest.raises(ValueError, match="finite"):
+        maintenance_call(float("nan"), plan_hours=100.0, m=2.0)
+
+
+def test_failed_must_be_zero_or_one():
+    """Regression: failed=2 must not count as r=2."""
+    with pytest.raises(ValueError, match="failed must be 0 or 1"):
+        fit_weibull_scale([100.0], [2], m=2.0)
+    with pytest.raises(ValueError, match="failed must be 0 or 1"):
+        validate_lifetime_sample([100.0, 120.0], [1, 2])
+
+
+def test_blank_cell_coerce_errors():
+    with pytest.raises(ValueError, match="missing"):
+        coerce_time_hours("")
+    with pytest.raises(ValueError, match="missing"):
+        coerce_time_hours("   ")
 
 
 def test_maintenance_call_threshold():
-    # c=200, B10≈64.9 → plan_hours=100 triggers maintain
     assert maintenance_call(200.0, plan_hours=100.0, m=2.0) == "maintain now"
-    # large c: B10 and R(100) both comfortable
     assert maintenance_call(1000.0, plan_hours=100.0, m=2.0) == "ok to fly"
