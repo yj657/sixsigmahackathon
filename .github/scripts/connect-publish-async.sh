@@ -100,7 +100,12 @@ emit "content_url=${CONTENT_URL}"
 # ---------------------------------------------------------------- 1. bundle --
 # Files = the manifest's own file list + manifest.json. `tr -d '\r'` keeps
 # this working from Git Bash on Windows too, where jq prints CRLF.
-mapfile -t FILES < <(jq -r '.files | keys[]' "${BUNDLE_DIR}/manifest.json" | tr -d '\r')
+# Portable file list (macOS /bin/bash 3.2 has no mapfile).
+FILES=()
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  FILES+=("$f")
+done < <(jq -r '.files | keys[]' "${BUNDLE_DIR}/manifest.json" | tr -d '\r')
 [ "${#FILES[@]}" -gt 0 ] || fail "manifest.json lists no files"
 MISSING=0
 for f in "${FILES[@]}"; do

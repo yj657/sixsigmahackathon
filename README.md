@@ -10,8 +10,9 @@ the next mission.
 | **Prompt** | 4 · Industrial Systems — Drone Delivery Fleet Maintenance |
 | **Track** | On-campus (24 hours) |
 | **Repo** | https://github.com/yj657/sixsigmahackathon |
+| **Live UI** | https://connect.systems-apps.com/content/a7bfcdd7-6564-45cb-b74e-09128cde8a93 |
 | **Live API** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe |
-| **Interactive docs** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs |
+| **API docs** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs |
 
 If the live URL shows **Unauthorized**, the Connect content Access setting still
 needs to be **Anyone** (Settings → Access on the content item).
