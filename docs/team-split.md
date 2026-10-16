@@ -26,10 +26,10 @@
 | H-02 | `data/` + codebook | **done** | A（已入库） |
 | H-03 | `app/qc.py` + pytest | **done** | B · Percy（`3fb5451`） |
 | H-04 | FastAPI 接 `qc.py` | **done** | B · Percy（`bca5df7`） |
-| H-05 | demo 走查每个 CSV | **in_progress**（等 Percy 独立走查 `demo/README.md` §5 线上命令） | A · jiangyijia |
+| H-05 | demo 走查每个 CSV | **done** | A · jiangyijia |
 | H-06 | Posit Connect 部署 | **done** | B · Percy |
 | H-07 | README | **done** | A + Percy（新 clone 走查：pytest 17、API、React 4 场景均通过） |
-| H-08 | 公开 repo + Devpost | **todo ← 下一步** | 全组 |
+| H-08 | 公开 repo + Devpost | **done** | 全组 |
 | UI | React `app/frontend/` | **done + Connect** | B · Percy — https://connect.systems-apps.com/content/a7bfcdd7-6564-45cb-b74e-09128cde8a93 |
 
 ---
