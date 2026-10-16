@@ -164,7 +164,7 @@ I-MR：**默认不做**（仅 H-06 稳且有余力再议）。
 - [x] Posit Connect 部署；带 key 线上 POST → ĉ≈205.670  
 - [x] Connect **Access → Anyone**（API 已无 key 验证）  
 - [x] `demo/README.md` + 根 README 写上 live URL（H-05 / H-07）  
-- [ ] Devpost 已交；密钥不在 git 里（H-08）  
+- [x] Devpost 已交；密钥不在 git 里（H-08）  
 
 ---
 

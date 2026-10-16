@@ -91,7 +91,7 @@ tasks:
   - id: H-05
     title: Demonstration of the tool on every test dataset
     points: "10 - Tool Design: a clear demonstration of the tool, using test datasets"
-    status: in_progress
+    status: done
     owner: "jiangyijia"
     started_at: "2026-10-16 17:42"
     owns: ["demo/", "app/frontend/"]
@@ -100,7 +100,7 @@ tasks:
       URL to run, the numbers or chart the tool shows, and a one-line "how to
       read this"; a teammate who did not write it follows it and gets the same
       numbers.
-    result: ""
+    result: "demo/README walks all CSVs + free-m/I-MR + live Connect; curls match known answers"
 
   - id: H-06
     title: Deploy to the course Posit Connect server
@@ -142,9 +142,9 @@ tasks:
   - id: H-08
     title: Reproducible public repo, submitted on Devpost
     points: "5 - Tool Documentation: fully reproducible code, posted publicly to GitHub"
-    status: todo
-    owner: ""
-    started_at: ""
+    status: done
+    owner: "kskbl"
+    started_at: "2026-10-16 19:20"
     owns: [".gitignore"]
     notes: >
       Make this clone your own public repo early (a new GitHub repo, then
@@ -154,7 +154,7 @@ tasks:
       git clone of the public repo into an empty folder, then the app/
       testme script and the H-03 tests both pass with no extra steps; git
       grep -i "api_key" finds no real key; the Devpost entry links the repo.
-    result: ""
+    result: "Public repo yj657/sixsigmahackathon; Windows fresh clone pytest 17 passed + /docs OK; Devpost submitted with repo + Live UI/API"
 
   - id: H-09
     title: Free-m Weibull MLE, I-MR chart, and multi-page UI
