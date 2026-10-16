@@ -3,9 +3,10 @@
 **分支：** 只在 `kskbl` 上开发，推送到 `origin/kskbl`。  
 **仓库：** https://github.com/yj657/sixsigmahackathon  
 **截止（校内）：** 提交 Sat Oct 17, **1 PM ET**；showcase 2–3 PM。  
-**更新：** 2026-10-16 18:23 ET  
-**Live API（Posit Connect）：** `…/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/`  
-（完整 host 见 Actions 日志 `LIVE:`；打开 `…/docs`。线上用 `POST /analyze`，不要用 `/analyze/file`。）
+**更新：** 2026-10-16 18:25 ET  
+**Live API（Posit Connect）：** `https://<CONNECT_SERVER>/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/`  
+`<CONNECT_SERVER>` = GitHub Secret / 活动发的主机（不要末尾 `/`）。打开 `…/docs`。线上只用 `POST /analyze`。  
+**本地 demo 验收（Percy 2026-10-16）：** baseline / plan50 / early / edge 四条 curl 均与 `demo/README.md` 一致；`pytest` 17 passed。
 
 | 角色 | 姓名 | 主责 |
 |---|---|---|
