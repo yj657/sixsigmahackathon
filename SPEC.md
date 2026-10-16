@@ -31,12 +31,15 @@ cannot measure costs points.
 
 ## 4. The statistics, and why (rubric: valid QC analysis 25)
 Say the method in words before any code exists. Load the `stats-first-steering` skill first.
-- **Method:** two-parameter Weibull life model with right-censored (Type I) observations. Shape *m* is fixed at 2 for the primary estimator (wear-out / Rayleigh, course case *m* > 1). Scale (characteristic life) *c* is estimated by MLE: \(c^m = (1/r)\sum_{i=1}^{n} t_i^m\), sum over failures and censored units, *r* = number of failures. From \((\hat m, \hat c)\) report MTTF \(= c\,\Gamma(1+1/m)\), reliability \(R(t)=\exp(-(t/c)^m)\), hazard \(z(t)=(m/c)(t/c)^{m-1}\), and B10 life (time at F=0.10). I-MR charts are out of scope for v1 (secondary if time remains).
-- **Why it fits the use case:** drone wear increases with flight hours (*m* > 1); many units are still flying, so censoring must enter the likelihood; MTTF / R(t) / B10 tell the tech when to maintain before a crash.
-- **Assumptions and how the tool checks them:** independent lives; Weibull with wear-out shape *m*=2 (stated on the UI); at least one failure (*r* ≥ 1) or the fit returns an error; censored times are last-seen hours, not failures. Degenerate: *r*=0 or *n*<1 → clear error, never inf.
+- **Method (primary):** two-parameter Weibull life model with right-censored (Type I) observations. Shape *m* is fixed at 2 for the primary estimator (wear-out / Rayleigh, course case *m* > 1). Scale (characteristic life) *c* is estimated by MLE: \(c^m = (1/r)\sum_{i=1}^{n} t_i^m\), sum over failures and censored units, *r* = number of failures. From \((\hat m, \hat c)\) report MTTF \(= c\,\Gamma(1+1/m)\), reliability \(R(t)=\exp(-(t/c)^m)\), hazard \(z(t)=(m/c)(t/c)^{m-1}\), and B10 life (time at F=0.10).
+- **Method (secondary, H-09):** (1) **Free-*m* MLE** — jointly estimate shape and scale from the right-censored likelihood (profile over *m*, then \(c^m=(1/r)\sum t_i^m\)); needs *r* ≥ 2. (2) **I-MR chart** on a univariate time series (e.g. consecutive mission hours): moving range \(\mathrm{MR}_i=|x_i-x_{i-1}|\), \(\overline{\mathrm{MR}}\), individuals limits \(\bar x\pm E_2\overline{\mathrm{MR}}\) with \(E_2=3/d_2\) and \(d_2=1.128\) (span 2), MR limits \(D_3=0\), \(D_4=3.267\).
+- **Why it fits the use case:** drone wear increases with flight hours (*m* > 1); many units are still flying, so censoring must enter the likelihood; MTTF / R(t) / B10 tell the tech when to maintain before a crash. Free-*m* checks whether wear-out is sharper than *m*=2; I-MR flags a sudden jump in mission-hour process.
+- **Assumptions and how the tool checks them:** independent lives; primary Weibull wear-out shape *m*=2 (stated on the UI); at least one failure (*r* ≥ 1) for fixed-*m*, *r* ≥ 2 for free-*m*, or the fit returns an error; censored times are last-seen hours, not failures. I-MR needs ≥ 2 points and finite values. Degenerate: *r*=0 or *n*<1 → clear error, never inf.
 - **Known-answer check:**
   - **A (closed form, known params):** *m*=2, *c*=200 h. Then MTTF = \(200\cdot\Gamma(1.5)=200\cdot\sqrt{\pi}/2\approx 177.245\) h; \(R(100)=\mathrm{e}^{-(100/200)^2}=\mathrm{e}^{-0.25}\approx 0.778801\); \(z(100)=(2/200)\cdot(100/200)=0.005\) /h; B10 = \(200\cdot(-\ln 0.9)^{1/2}\approx 64.919\) h.
   - **B (MLE for *c*, *m*=2 fixed, right-censored):** times `[100, 120, 150, 200, 200]` with failed `[1,1,1,0,0]`. \(\sum t_i^2=126900\), *r*=3, \(\hat c=\sqrt{126900/3}=\sqrt{42300}\approx 205.670\) h; MTTF ≈ 182.270 h; \(R(100)\approx 0.789460\).
+  - **C (free-*m* MLE on `early_wearout.csv`):** \(\hat m\approx 5.709\), \(\hat c\approx 57.869\) h, B10 ≈ 39.019 h (sharper wear-out than *m*=2).
+  - **D (I-MR, planted shift):** values `[10,12,11,13,12,11,25,26,24]`. \(\bar x=16\), eight MRs with \(\overline{\mathrm{MR}}=3\); I UCL/LCL ≈ 23.98 / 8.02; MR UCL ≈ 9.801; points 7–9 and MR at step 7 out of control.
 
 Fixed for every team:
 - The statistic lives in **one plain, tested function** (`app/qc.py` or `app/qc.R`). The API, app or
@@ -57,13 +60,13 @@ Fixed for every team:
 - A small tool that runs beats a large tool that does not.
 
 ## 6. Outputs
-- **What the user sees:** fitted \(\hat c\) (hours), MTTF (hours), R(plan_hours), hazard z(plan_hours), B10 life (hours), and a one-line call: **maintain now** if B10 ≤ plan_hours or R(plan_hours) < 0.90, else **ok to fly**; plus a reliability curve R(t) vs hours. How to read: if R for the next mission is below 0.90, ground and service before dispatch.
+- **What the user sees:** fitted \(\hat c\) (hours), MTTF (hours), R(plan_hours), hazard z(plan_hours), B10 life (hours), and a one-line call: **maintain now** if B10 ≤ plan_hours or R(plan_hours) < 0.90, else **ok to fly**; plus a reliability curve R(t) vs hours. Optional: free-\(\hat m\) fit and an I-MR page for mission-hour process control. How to read: if R for the next mission is below 0.90, ground and service before dispatch.
 
 ## 7. Test datasets and codebook (rubric: demo 10, datasets 5, codebook 5)
 2-3 small CSVs in `data/`, invented but shaped like real field data, each showing one behavior.
 `data/README.md` is the codebook: every file, every column with units, and what it would take to
 collect this data for real.
-- **Datasets:** `wearout_baseline.csv` (mixed failures + censored, matches known-answer B), `early_wearout.csv` (shorter lives, B10 forces maintain), `edge_all_censored.csv` (*r*=0, tool must error clearly)
+- **Datasets:** `wearout_baseline.csv` (mixed failures + censored, matches known-answer B), `early_wearout.csv` (shorter lives, B10 forces maintain; also free-*m* known-answer C), `edge_all_censored.csv` (*r*=0, tool must error clearly), `imr_mission_hours.csv` (consecutive mission hours with a planted late shift for I-MR known-answer D)
 
 ## 8. Documentation and reproducibility (rubric: docs 10, public repo 5)
 - `README.md` says what the tool does, for whom, every input and parameter, how to run it in one
@@ -74,4 +77,4 @@ collect this data for real.
 ## 9. Out of scope
 What we will NOT build, so nobody (human or agent) builds it by accident.
 - Default: logins, databases, real customer data, a second statistic before the first one is tested.
-- No live drone telemetry stream; no crash reconstruction; no multi-fleet comparison; no free-*m* MLE in v1 (shape fixed at 2); I-MR only if Weibull path is fully tested and time remains.
+- No live drone telemetry stream; no crash reconstruction; no multi-fleet comparison; no Western Electric run rules beyond point-beyond-limits on I-MR; no attribute (p/np/c/u) charts.

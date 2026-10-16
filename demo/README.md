@@ -9,8 +9,9 @@ this page should get the same numbers.
 should the fleet be serviced before the next `plan_hours` of flying?
 
 **The method** ([SPEC §4](../SPEC.md)): a Weibull life model with the shape fixed at *m* = 2
-(wear-out). The scale *ĉ* is estimated from all drones, and the ones still flying count as
-right-censored. The statistics live in [`app/qc.py`](../app/qc.py); the API only calls it.
+(wear-out) as the primary path. The scale *ĉ* is estimated from all drones, and the ones still
+flying count as right-censored. Secondary: free-*m* MLE (`estimate_m=true`) and an I-MR chart
+on mission hours. The statistics live in [`app/qc.py`](../app/qc.py); the API only calls it.
 
 ---
 
@@ -31,7 +32,7 @@ source .venv/bin/activate
 pip install -r app/requirements.txt
 ```
 
-Check the statistics and the input validation first (expect `17 passed`):
+Check the statistics and the input validation first (expect `23 passed`):
 
 ```bash
 pytest tests
@@ -147,13 +148,41 @@ Returns (rounded): `c_hat 125.033`, `B10 40.585`, `mttf 110.808`.
 **How to read this:** dropping the survivors cuts the estimated life from 205.670 h to 125.033 h.
 Counting survivors as censored is what keeps the tool from making the fleet look worse than it is.
 
+### 3.6 Free-*m* on `early_wearout.csv` (SPEC §4 C)
+
+```bash
+curl "http://127.0.0.1:8000/analyze/file?name=early_wearout.csv&estimate_m=true"
+```
+
+Returns (rounded): `m` ≈ 5.709, `c_hat` ≈ 57.869, `B10` ≈ 39.019, `call` = maintain now.
+
+**How to read this:** the data prefer a sharper wear-out than *m* = 2. Primary *m* = 2 is more
+conservative (B10 ≈ 20.8 h). Free-*m* needs *r* ≥ 2.
+
+### 3.7 I-MR on `imr_mission_hours.csv` (SPEC §4 D)
+
+```bash
+curl "http://127.0.0.1:8000/imr/file?name=imr_mission_hours.csv"
+```
+
+Returns: `x_bar` = 16, `mr_bar` = 3, individuals OOC at points 7–9, MR OOC at step 7.
+
+**How to read this:** mission hours jumped late in the series; the I chart flags the shift. This is
+process monitoring on consecutive missions, not a lifetime fit.
+
+Live (no `data/` on Connect):
+
+```bash
+curl -X POST "$LIVE_URL/imr" -H "Content-Type: application/json" -d '{"values":[10,12,11,13,12,11,25,26,24]}'
+```
+
 ---
 
 ## 4. What each output means
 
 | Field | Units | Meaning |
 |---|---|---|
-| `m` | — | Weibull shape, fixed at 2 (assumed wear-out: failures get likelier as hours grow) |
+| `m` | — | Weibull shape: fixed at 2 (primary) or free MLE when `estimate_m=true` |
 | `c_hat` | hours | characteristic life: by this age about 63.2% of drones have failed |
 | `mttf` | hours | mean time to failure, `c_hat × Γ(1 + 1/m)` |
 | `B10` | hours | age by which 10% of drones are expected to fail |
@@ -211,8 +240,9 @@ same JSON.
 
 ## 6. Limits to say out loud
 
-- The shape *m* = 2 is assumed, not estimated from the data.
+- Primary path still assumes *m* = 2; free-*m* is a secondary check (needs *r* ≥ 2).
 - `R_plan` is measured from 0 h, not from a drone's current age.
+- I-MR flags points beyond limits only (no Western Electric run rules).
 - The datasets are small and invented (see the [codebook](../data/README.md)); with 3–4 failures the
   estimates are rough.
 - Bad input is refused, not guessed at: a blank or `NaN` time, a time ≤ 0, or a `failed` other
@@ -221,8 +251,10 @@ same JSON.
 
 ## 7. Check it yourself
 
-- [ ] `pytest tests` prints `17 passed`.
+- [ ] `pytest tests` prints `23 passed`.
 - [ ] Each command in section 3 returns the numbers shown, to 3 decimals.
+- [ ] Free-*m* on early_wearout ≈ m 5.709 / c 57.869.
+- [ ] I-MR on planted shift flags points 7–9.
 - [ ] `plan_hours=50` flips the baseline to `ok to fly`.
 - [ ] The all-censored file returns HTTP 400, not a number.
 - [ ] After H-06: each command in section 5 returns the same numbers from the live URL.

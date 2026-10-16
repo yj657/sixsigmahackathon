@@ -38,9 +38,12 @@ The tool answers `maintain now` or `ok to fly`, with the numbers behind the call
 
 The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](SPEC.md)).
 
-- **Shape fixed at *m* = 2 (wear-out).** The chance of failing in the next hour grows as a drone
-  ages. This is an **assumption, not estimated from the data**; every response reports `m`.
-  The [codebook](data/README.md) shows where it is conservative.
+- **Shape fixed at *m* = 2 (wear-out) — primary path.** The chance of failing in the next hour
+  grows as a drone ages. This is an **assumption** for the maintain-now call; every response
+  reports `m`. The [codebook](data/README.md) shows where it is conservative.
+- **Secondary: free-*m* MLE** (`estimate_m=true`, needs *r* ≥ 2) jointly estimates shape and scale
+  from the same right-censored likelihood.
+- **Secondary: I-MR** on consecutive mission hours (`POST /imr`) for process monitoring.
 - **Drones still flying count.** A drone that has not failed is *right-censored*: it lasted at
   least its current hours. Dropping those drones would make the fleet look much worse than it is.
 - **Scale by maximum likelihood.** With *m* known, the characteristic life is
@@ -57,8 +60,8 @@ The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](S
 failed `[1, 1, 1, 0, 0]` give Σt² = 126900, *r* = 3, so \(\hat c = \sqrt{42300} \approx 205.670\) h,
 MTTF ≈ 182.270 h, B10 ≈ 66.759 h → `maintain now` for a 100 h plan.
 
-**Limits:** *m* = 2 is assumed; R(`plan_hours`) is measured from 0 h, not from a drone's current
-age; the test datasets are small and invented, so the estimates are rough.
+**Limits:** primary path assumes *m* = 2; R(`plan_hours`) is measured from 0 h, not from a drone's
+current age; the test datasets are small and invented, so the estimates are rough.
 
 ---
 
@@ -80,7 +83,7 @@ source .venv/bin/activate
 pip install -r app/requirements.txt
 ```
 
-Check the statistics and input validation (expect `17 passed`):
+Check the statistics and input validation (expect `23 passed`):
 
 ```bash
 pytest tests
@@ -106,10 +109,10 @@ Expected: `c_hat` ≈ 205.670, `call` `"maintain now"`.
 
 ## Technician UI (React)
 
-A browser front end for the technician, in [`app/frontend/`](app/frontend/): load a demo sample
-(baseline, baseline at 50 h, early wear-out, all-censored) or paste flight hours, and it calls
-`POST /analyze` and shows the `maintain now` / `ok to fly` call, the numbers and an R(t) curve.
-Bad data shows the API's HTTP 400 message. It needs Node.js and npm.
+A browser front end for the technician, in [`app/frontend/`](app/frontend/): three pages —
+Weibull *m*=2, free-*m* fit, and I-MR. Load a demo sample or paste data; Weibull pages call
+`POST /analyze`, I-MR calls `POST /imr`. Bad data shows the API's HTTP 400 message. Needs Node.js
+and npm.
 
 ```bash
 cd app/frontend
@@ -136,8 +139,10 @@ statistics stay in `app/qc.py`.
 | `times` | `POST /analyze` body | list of numbers, flight hours, each > 0 | yes | Hours on each drone at failure, or its current hours if still flying |
 | `failed` | `POST /analyze` body | list of 0/1, same length and order as `times` | yes | 1 = the drone failed; 0 = still flying or removed without failing (censored) |
 | `plan_hours` | body or query | number, hours, > 0 | no, default 100 | The flying horizon you want to check before the next service |
-| `m` | body or query | number, > 0 | no, default 2 | Weibull shape. Keep 2 unless you have a reason; it is an assumption |
-| `name` | `/analyze/file` query | a CSV filename in `data/` | yes, for that route | Which test dataset to read (local only) |
+| `m` | body or query | number, > 0 | no, default 2 | Weibull shape when `estimate_m` is false |
+| `estimate_m` | body or query | bool | no, default false | If true, jointly MLE shape and scale (*r* ≥ 2) |
+| `values` | `POST /imr` body | list of numbers | yes, for I-MR | Ordered mission-hour series |
+| `name` | `/analyze/file` or `/imr/file` query | a CSV filename in `data/` | yes, for that route | Which test dataset to read (local only) |
 
 As a CSV, the same data is one row per drone with columns `drone_id,time_hours,failed`; see the
 [codebook](data/README.md) for units, collection and the rules for valid rows.
@@ -162,8 +167,10 @@ As a CSV, the same data is one row per drone with columns `drone_id,time_hours,f
 |---|---|---|
 | GET | `/` | API info and links |
 | GET | `/docs` | Interactive docs: try every endpoint in the browser |
-| POST | `/analyze` | Runs the analysis on JSON `times`, `failed`, optional `plan_hours`, `m`. **Use this on the live server** |
+| POST | `/analyze` | Weibull analysis on JSON `times`, `failed`, optional `plan_hours`, `m`, `estimate_m`. **Use this on the live server** |
 | GET | `/analyze/file?name=...` | Same analysis on a CSV in `data/`. **Local only**: `data/` is not deployed, so online it answers 404 |
+| POST | `/imr` | I-MR chart on JSON `values` |
+| GET | `/imr/file?name=...` | I-MR on a CSV in `data/` (**local only**) |
 
 Bad input is refused, not guessed at: a missing, NaN or non-positive time, a `failed` other than
 0/1, empty or mismatched lists, or no failures at all return **HTTP 400** with a message (HTTP 422
@@ -188,8 +195,10 @@ The statistics live in one plain module, [`app/qc.py`](app/qc.py); the API in
 
 | Function in `app/qc.py` | What it does |
 |---|---|
-| `analyze_fleet(times, failed, plan_hours=100, m=2)` | Validates the data, fits \(\hat c\), returns every output field above |
+| `analyze_fleet(times, failed, plan_hours=100, m=2, estimate_m=False)` | Validates the data, fits \(\hat c\) (and optionally \(\hat m\)), returns every output field above |
 | `fit_weibull_scale(times, failed, m=2)` | Censored maximum-likelihood estimate of \(\hat c\) with known shape *m*; errors if *r* = 0 |
+| `fit_weibull_mle(times, failed)` | Joint free-*m* MLE; needs *r* ≥ 2 |
+| `imr_chart(values)` | Individuals–moving-range limits and out-of-control flags |
 | `weibull_mttf(c, m)` | MTTF \(= c\,\Gamma(1 + 1/m)\) |
 | `weibull_reliability(t, c, m)` | \(R(t) = \exp(-(t/c)^m)\) |
 | `weibull_hazard(t, c, m)` | \(z(t) = (m/c)(t/c)^{m-1}\) |
@@ -209,6 +218,7 @@ Tests: [`tests/test_qc.py`](tests/test_qc.py) (known answers, every dataset, edg
 | [`wearout_baseline.csv`](data/wearout_baseline.csv) | 5 | 3 | normal mix of failed and still-flying drones; the known answer | maintain now (ok to fly at 50 h) |
 | [`early_wearout.csv`](data/early_wearout.csv) | 6 | 4 | parts that wear out fast | maintain now |
 | [`edge_all_censored.csv`](data/edge_all_censored.csv) | 3 | 0 | no failures yet | HTTP 400: cannot estimate |
+| [`imr_mission_hours.csv`](data/imr_mission_hours.csv) | 9 missions | — | planted late jump for I-MR (SPEC §4 D) | I OOC at points 7–9 |
 
 Every number, command and "how to read this" line is in [`demo/README.md`](demo/README.md).
 
@@ -219,17 +229,17 @@ Every number, command and "how to read this" line is in [`demo/README.md`](demo/
 ```
 app/        the FastAPI app: qc.py (statistics), app.py (API), testme.sh, manifestme.sh, deployme.sh
 app/frontend/  the React technician UI (Vite); calls POST /analyze
-data/       three test datasets and the codebook
+data/       lifetime CSVs + I-MR series and the codebook
 demo/       the demonstration on every dataset
 tests/      pytest tests
 SPEC.md     what the tool is; CONTRACT.yaml the task ledger
 docs/       the hackathon's event pages (schedule, criteria, prompts) and our team notes
 ```
 
-## Out of scope (v1)
+## Out of scope
 
-No login or database, no free-*m* (shape) estimate, no I-MR control charts, no live drone
-telemetry.
+No login or database, no Western Electric run rules beyond point-beyond-limits on I-MR, no live
+drone telemetry.
 
 ## Credits
 

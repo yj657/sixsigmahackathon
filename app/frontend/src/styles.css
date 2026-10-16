@@ -115,6 +115,84 @@ h1 {
   color: #ffc4b8;
 }
 
+.tabs {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .tabs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.tab {
+  text-align: left;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.tab:hover {
+  border-color: var(--amber-dim);
+}
+
+.tab.active {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, var(--bg-elev));
+}
+
+.tab-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.tab-blurb {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.page-note {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.imr-block {
+  margin-bottom: 1.25rem;
+}
+
+.imr-block h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.curve .limit {
+  stroke: color-mix(in srgb, var(--danger) 55%, var(--line));
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.curve .limit.mid {
+  stroke: var(--focus);
+  stroke-dasharray: none;
+}
+
+.curve .pt.ok {
+  fill: var(--amber);
+}
+
 .samples {
   display: grid;
   gap: 0.5rem;

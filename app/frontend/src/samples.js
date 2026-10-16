@@ -16,7 +16,7 @@ export const SAMPLES = {
   },
   early: {
     label: 'early_wearout',
-    blurb: 'Shorter lives — expect maintain now',
+    blurb: 'Shorter lives — expect maintain now (free-m ≈ 5.7)',
     times: [40, 45, 50, 55, 60, 60],
     failed: [1, 1, 1, 1, 0, 0],
     plan_hours: 100,
@@ -27,5 +27,18 @@ export const SAMPLES = {
     times: [80, 90, 100],
     failed: [0, 0, 0],
     plan_hours: 100,
+  },
+}
+
+export const IMR_SAMPLES = {
+  shift: {
+    label: 'imr_mission_hours',
+    blurb: 'Planted late jump — points 7–9 OOC',
+    values: [10, 12, 11, 13, 12, 11, 25, 26, 24],
+  },
+  steady: {
+    label: 'steady missions',
+    blurb: 'In-control-ish hours — no planted shift',
+    values: [10, 11, 10, 12, 11, 10, 11, 12, 10],
   },
 }

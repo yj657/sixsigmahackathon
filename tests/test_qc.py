@@ -6,10 +6,15 @@ from pathlib import Path
 import pytest
 
 from app.qc import (
+    IMR_D4,
+    IMR_E2,
     analyze_fleet,
     b10_life,
     coerce_time_hours,
+    fit_weibull_mle,
     fit_weibull_scale,
+    imr_chart,
+    load_imr_csv,
     maintenance_call,
     validate_lifetime_sample,
     weibull_hazard,
@@ -143,3 +148,60 @@ def test_blank_cell_coerce_errors():
 def test_maintenance_call_threshold():
     assert maintenance_call(200.0, plan_hours=100.0, m=2.0) == "maintain now"
     assert maintenance_call(1000.0, plan_hours=100.0, m=2.0) == "ok to fly"
+
+
+def test_known_answer_c_free_m_early_wearout():
+    """SPEC §4 C: free-m MLE on early_wearout → m≈5.709, c≈57.869, B10≈39.019."""
+    times, failed = _load_csv("early_wearout.csv")
+    m_hat, c_hat = fit_weibull_mle(times, failed)
+    assert m_hat == pytest.approx(5.709, abs=1e-2)
+    assert c_hat == pytest.approx(57.869, abs=1e-2)
+    assert b10_life(c_hat, m=m_hat) == pytest.approx(39.019, abs=1e-2)
+    out = analyze_fleet(times, failed, plan_hours=100.0, estimate_m=True)
+    assert out["shape_mode"] == "free"
+    assert out["m"] == pytest.approx(m_hat, abs=1e-9)
+    assert out["call"] == "maintain now"
+
+
+def test_free_m_needs_two_failures():
+    with pytest.raises(ValueError, match="at least two failures"):
+        fit_weibull_mle([100.0], [1])
+    with pytest.raises(ValueError, match="at least two failures"):
+        analyze_fleet([100.0, 120.0], [1, 0], estimate_m=True)
+
+
+def test_known_answer_d_imr_planted_shift():
+    """SPEC §4 D: I-MR on planted late shift; x̄=16, mR̄=3; points 7–9 OOC."""
+    values = [10.0, 12.0, 11.0, 13.0, 12.0, 11.0, 25.0, 26.0, 24.0]
+    out = imr_chart(values)
+    assert out["x_bar"] == pytest.approx(16.0)
+    assert out["mr_bar"] == pytest.approx(3.0)
+    assert out["individuals"]["ucl"] == pytest.approx(16.0 + IMR_E2 * 3.0, abs=1e-9)
+    assert out["individuals"]["lcl"] == pytest.approx(16.0 - IMR_E2 * 3.0, abs=1e-9)
+    assert out["moving_range"]["ucl"] == pytest.approx(IMR_D4 * 3.0, abs=1e-9)
+    assert out["moving_range"]["lcl"] == pytest.approx(0.0)
+    ooc_i = [p["index"] for p in out["individuals"]["points"] if p["out_of_control"]]
+    ooc_mr = [p["index"] for p in out["moving_range"]["points"] if p["out_of_control"]]
+    assert ooc_i == [7, 8, 9]
+    assert ooc_mr == [7]
+
+
+def test_imr_degenerate_constant_no_ooc():
+    """Constant series → mR̄=0, limits collapse to the constant, no OOC flags."""
+    out = imr_chart([5.0, 5.0, 5.0, 5.0])
+    assert out["mr_bar"] == pytest.approx(0.0)
+    assert out["individuals"]["ucl"] == pytest.approx(5.0)
+    assert out["individuals"]["n_out_of_control"] == 0
+    assert out["moving_range"]["n_out_of_control"] == 0
+
+
+def test_imr_n_equals_one_errors():
+    with pytest.raises(ValueError, match="at least two"):
+        imr_chart([10.0])
+
+
+def test_csv_imr_mission_hours_known_d():
+    values = load_imr_csv(DATA / "imr_mission_hours.csv")
+    assert values == [10.0, 12.0, 11.0, 13.0, 12.0, 11.0, 25.0, 26.0, 24.0]
+    out = imr_chart(values)
+    assert out["individuals"]["n_out_of_control"] == 3

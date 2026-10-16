@@ -155,3 +155,27 @@ tasks:
       testme script and the H-03 tests both pass with no extra steps; git
       grep -i "api_key" finds no real key; the Devpost entry links the repo.
     result: ""
+
+  - id: H-09
+    title: Free-m Weibull MLE, I-MR chart, and multi-page UI
+    points: "stretch - secondary stats after primary Weibull path is tested"
+    status: done
+    owner: "agent + percy"
+    started_at: "2026-10-16 19:09"
+    owns:
+      - "SPEC.md"
+      - "app/qc.py"
+      - "app/app.py"
+      - "tests/"
+      - "data/"
+      - "app/frontend/"
+      - "demo/README.md"
+      - "README.md"
+    notes: >
+      Keep m=2 as the primary maintain-now path. Free-m and I-MR are secondary
+      pages/endpoints with their own known-answer tests (SPEC section 4 C and D).
+    definition_of_done: >
+      pytest tests passes including free-m known-answer C and I-MR known-answer D;
+      POST /analyze with estimate_m=true and POST /imr return those numbers;
+      frontend has Weibull (fixed), Weibull (free m), and I-MR views.
+    result: "pytest 23 passed (C free-m m≈5.709/c≈57.869; D I-MR OOC 7-9); UI tabs + /imr"

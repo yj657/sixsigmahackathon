@@ -33,10 +33,18 @@ export function checkApi() {
   return getJson('/')
 }
 
-export function analyzeFleet({ times, failed, plan_hours = 100, m = 2 }) {
+export function analyzeFleet({ times, failed, plan_hours = 100, m = 2, estimate_m = false }) {
   return getJson('/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ times, failed, plan_hours, m }),
+    body: JSON.stringify({ times, failed, plan_hours, m, estimate_m }),
+  })
+}
+
+export function runImr({ values }) {
+  return getJson('/imr', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ values }),
   })
 }

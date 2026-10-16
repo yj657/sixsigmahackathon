@@ -14,22 +14,25 @@ their hours would not be round.
 
 ## How the tool uses the data
 
-The tool fits a **Weibull life model with the shape fixed at *m* = 2**
-([SPEC §4](../SPEC.md), [`app/qc.py`](../app/qc.py)).
+The tool fits a **Weibull life model** ([SPEC §4](../SPEC.md), [`app/qc.py`](../app/qc.py)).
 
-- **Why *m* = 2:** it is a wear-out shape. The chance of failing in the next hour
-  grows as a drone ages, which is what we expect from motors, bearings and
-  batteries. It is an **assumption, not estimated from the data**.
-- **Failures and censoring:** each row is one airframe. A drone with
+- **Primary (*m* = 2 fixed):** wear-out shape. The chance of failing in the next
+  hour grows as a drone ages. This is the maintain-now path used in demos.
+- **Secondary (free-*m*):** jointly MLE shape and scale from the same right-censored
+  likelihood (`estimate_m=true`, needs *r* ≥ 2). Use it to check whether wear-out
+  is sharper than *m* = 2.
+- **Secondary (I-MR):** `imr_mission_hours.csv` is a univariate series of consecutive
+  mission hours for process monitoring (not lifetime censoring).
+- **Failures and censoring (Weibull CSVs):** each row is one airframe. A drone with
   `failed = 1` adds a failure at its `time_hours`. A drone with `failed = 0` is
   right-censored: it is known to have lasted *at least* `time_hours`. Both kinds
   of row enter the estimate,
 
   \(\hat c^{\,m} = \dfrac{1}{r}\sum_{\text{all rows}} t_i^{\,m}\), where *r* = number of rows with `failed = 1`.
 - **Where the data live:** the API reads these files only when run locally
-  (`GET /analyze/file?name=...`). `data/` is not deployed, so on the live server
-  send the same numbers with `POST /analyze`. See [`demo/README.md`](../demo/README.md)
-  for the exact commands.
+  (`GET /analyze/file?name=...`, `GET /imr/file?name=...`). `data/` is not deployed,
+  so on the live server send the same numbers with `POST /analyze` or `POST /imr`.
+  See [`demo/README.md`](../demo/README.md) for the exact commands.
 
 ## Files
 
@@ -38,8 +41,9 @@ The tool fits a **Weibull life model with the shape fixed at *m* = 2**
 | `wearout_baseline.csv` | Normal case: mixed failures and still-flying (right-censored) drones. Matches SPEC §4 known-answer B. | 5 | 3 | 2 |
 | `early_wearout.csv` | Short-life wear-out: parts that wear out fast, so B10 and R(100) push **maintain now**. ("Early" here means short lives, not infant mortality.) | 6 | 4 | 2 |
 | `edge_all_censored.csv` | No failures (*r* = 0). The tool must return a clear error, not a fit. | 3 | 0 | 3 |
+| `imr_mission_hours.csv` | Consecutive mission hours with a planted late jump (SPEC §4 D). I-MR, not Weibull. | 9 missions | — | — |
 
-## Columns (every CSV)
+## Columns (Weibull lifetime CSVs)
 
 | Column | Type | Units / coding | Meaning | How it is collected |
 |---|---|---|---|---|
@@ -103,15 +107,21 @@ R(`plan_hours`) < 0.90, else **ok to fly**.
 `wearout_baseline.csv` with `plan_hours=50` gives R(50) = 0.942611 and
 **ok to fly**: the only "ok to fly" case in the demo.
 
-### Note: `early_wearout.csv` and the *m* = 2 assumption
+### Free-*m* on `early_wearout.csv` (SPEC §4 C)
 
-The four failures in this file are tightly clustered (40–55 h). Estimating the
-shape from the data instead of fixing it gives *m* ≈ 5.7 and *c* ≈ 57.9 h, so
-these parts wear out more sharply than *m* = 2 assumes. With *m* fixed at 2 the
-tool reports B10 ≈ 20.8 h, earlier than the first observed failure (40 h). The
-free-shape fit would put B10 near 39 h.
+The four failures are tightly clustered (40–55 h). Free-*m* MLE gives
+\(\hat m\approx 5.709\), \(\hat c\approx 57.869\) h, B10 ≈ 39.019 h — sharper
+wear-out than *m* = 2. With *m* fixed at 2 the tool reports B10 ≈ 20.8 h
+(conservative: service sooner). Call either path with
+`GET /analyze/file?name=early_wearout.csv&estimate_m=true`.
 
-So for this file *m* = 2 is **conservative**: it calls for service sooner than
-the data alone would. With only four failures neither shape can be pinned down;
-this is why *m* is stated as an assumption. The free-shape values above are a
-reference check only; the tool does not compute them (out of scope for v1).
+### I-MR columns (`imr_mission_hours.csv`)
+
+| Column | Type | Units | Meaning |
+|---|---|---|---|
+| `mission_id` | string | label | Mission order label; not used in the chart |
+| `hours` | number | flight hours for that mission | The individuals series \(x_i\) |
+
+Expected (checked against `app/qc.py`): \(\bar x=16\), \(\overline{\mathrm{MR}}=3\);
+individuals UCL/LCL ≈ 23.979 / 8.021; MR UCL ≈ 9.801; points 7–9 and the MR at
+step 7 out of control (planted shift). Degenerate constant series → \(\overline{\mathrm{MR}}=0\), no OOC flags.
