@@ -125,7 +125,7 @@ tasks:
   - id: H-07
     title: README and function documentation
     points: "10 - Tool Documentation: excellent, easy-to-follow documentation"
-    status: in_progress
+    status: done
     owner: "jiangyijia + percy"
     started_at: "2026-10-16 18:11"
     owns: ["README.md", "app/README.md"]
@@ -137,7 +137,7 @@ tasks:
       how each function or endpoint works, how to run it in one command, the
       live URL, and links demo/README.md. A teammate who did not write the
       code follows it from a fresh clone and it works.
-    result: ""
+    result: "Fresh clone of kskbl (jiangyijia): pip install OK, pytest 17 passed, /docs OK; baseline 100/50 h, early, all-censored match; React npm run dev, 4 scenarios + R(t) chart + HTTP 400 OK vs live API"
 
   - id: H-08
     title: Reproducible public repo, submitted on Devpost
