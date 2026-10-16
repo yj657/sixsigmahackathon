@@ -3,10 +3,11 @@
 **分支：** 只在 `kskbl` 上开发，推送到 `origin/kskbl`。  
 **仓库：** https://github.com/yj657/sixsigmahackathon  
 **截止（校内）：** 提交 Sat Oct 17, **1 PM ET**；showcase 2–3 PM。  
-**更新：** 2026-10-16 18:25 ET  
-**Live API（Posit Connect）：** `https://<CONNECT_SERVER>/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/`  
-`<CONNECT_SERVER>` = GitHub Secret / 活动发的主机（不要末尾 `/`）。打开 `…/docs`。线上只用 `POST /analyze`。  
-**本地 demo 验收（Percy 2026-10-16）：** baseline / plan50 / early / edge 四条 curl 均与 `demo/README.md` 一致；`pytest` 17 passed。
+**更新：** 2026-10-16 18:52 ET  
+**Live API：** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe  
+**Docs：** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs  
+**重要：** 匿名打开若 Unauthorized → Connect → Settings → **Access → Anyone**（评委才能看）。  
+**验收：** 本地 4 条 curl OK；带 key 线上 POST → ĉ≈205.67；`pytest` 17 passed。
 
 | 角色 | 姓名 | 主责 |
 |---|---|---|
@@ -25,10 +26,10 @@
 | H-02 | `data/` + codebook | **done** | A（已入库） |
 | H-03 | `app/qc.py` + pytest | **done** | B · Percy（`3fb5451`） |
 | H-04 | FastAPI 接 `qc.py` | **done** | B · Percy（`bca5df7`） |
-| H-05 | demo 走查每个 CSV | **in_progress**（本地已验收；差 live URL + 线上 4 条 POST） | A · jiangyijia |
-| H-06 | Posit Connect 部署 | **done** | B · Percy（Actions #3 绿；`/docs` HTTP 200） |
-| H-07 | README | **in_progress**（`app/README.md` 已完成；差根 `README.md` + live URL） | A 主笔，B 补测 |
-| H-08 | 公开 repo + Devpost | todo | 全组 |
+| H-05 | demo 走查每个 CSV | **done** | A · jiangyijia（Percy 填 live URL） |
+| H-06 | Posit Connect 部署 | **done** | B · Percy |
+| H-07 | README | **done** | A + Percy（根 README 已是工具页） |
+| H-08 | 公开 repo + Devpost | **todo ← 下一步** | 全组 |
 
 ---
 
@@ -158,10 +159,10 @@ I-MR：**默认不做**（仅 H-06 稳且有余力再议）。
 
 - [x] `pytest tests` 通过（H-03）  
 - [x] 本地 curl baseline → ĉ≈205.670（H-04）  
-- [ ] `early_wearout` → maintain now；`edge_all_censored` → 清晰错误（写进 demo）  
-- [x] Posit Connect 公网 `/docs` HTTP 200（H-06；content `61dce257-81d0-44e8-84c4-c10cfeae1bbe`）  
-- [ ] 线上 `POST /analyze` 复现 ĉ≈205.670（A/B 各测一次）  
-- [ ] `demo/README.md` + 根 README 写上 live URL（H-05 / H-07）  
+- [x] `early_wearout` → maintain now；`edge_all_censored` → 清晰错误（写进 demo）  
+- [x] Posit Connect 部署；带 key 线上 POST → ĉ≈205.670  
+- [ ] Connect **Access → Anyone**（否则评委 401）  
+- [x] `demo/README.md` + 根 README 写上 live URL（H-05 / H-07）  
 - [ ] Devpost 已交；密钥不在 git 里（H-08）  
 
 ---

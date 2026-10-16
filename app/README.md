@@ -73,8 +73,13 @@ your laptop. Only the `app/` folder is deployed to Posit Connect (the files list
 the `time_hours` column and `failed` is the `failed` column, in the same row order. On the live
 server you can also open `/docs`, choose `POST /analyze`, click **Try it out**, and paste the JSON.
 
-The examples below call the local server. After deploy, replace `http://127.0.0.1:8000` with the
-Connect URL.
+**Live Connect URL:**
+https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe  
+**Docs:** …/docs  
+
+If you see Unauthorized in a logged-out browser, set the content **Access** to **Anyone** in
+Connect Settings. The examples below call the local server; on Connect use the live URL with
+`POST /analyze` only.
 
 `wearout_baseline.csv` → `c_hat` ≈ 205.670, `maintain now`:
 

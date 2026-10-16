@@ -167,13 +167,18 @@ Counting survivors as censored is what keeps the tool from making the fleet look
 
 ## 5. On the live server
 
-**Live URL:** `TODO — paste the Posit Connect URL after H-06 is live.`
+**Live URL:** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe  
+**Docs:** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs  
+
+If the browser shows **Unauthorized**, open the app in Connect → **Settings → Access** and allow
+**Anyone** (or at least all logged-in users) so judges can open it without a publisher key. The API
+itself is fine: with access open, `POST /analyze` returns the same numbers as local.
 
 Only `app/` is deployed, so the `data/` files are not on the server and `/analyze/file` works only
 locally. On the live server, send the same numbers with `POST /analyze`. Set the address once:
 
 ```bash
-LIVE_URL="TODO-paste-the-Connect-URL"
+LIVE_URL="https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe"
 ```
 
 `wearout_baseline.csv` (expect `c_hat` ≈ 205.670, `maintain now`):

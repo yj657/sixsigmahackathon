@@ -1,192 +1,116 @@
-# Drone Fleet Reliability API
+# kskbl — Drone Delivery Fleet Reliability
 
-A small REST API that tells a drone delivery fleet **when to service drones before they fail in
-the air**, from nothing more than each drone's flight hours and whether it has failed.
-
-Built for the Cornell Six Sigma Hackathon, prompt 4: *Industrial Systems — Drone Delivery Fleet
-Maintenance*. The prompt: a drone startup only investigates mid-air failures after a crash; build
-a tool that helps technicians track wear-and-tear and improve reliability.
+Weibull (shape *m* = 2) life analysis with right-censored flight hours, for a
+fleet maintenance technician deciding **maintain now** vs **ok to fly** before
+the next mission.
 
 | | |
 |---|---|
-| **Live API** | `TODO — paste the Posit Connect URL` (open `/docs` on it) |
-| **Demo walkthrough** | [`demo/README.md`](demo/README.md) — every dataset, command and number |
-| **Data codebook** | [`data/README.md`](data/README.md) — every file and column |
-| **API details** | [`app/README.md`](app/README.md) — endpoints, validation, deploy |
-| **Spec and task ledger** | [`SPEC.md`](SPEC.md), [`CONTRACT.yaml`](CONTRACT.yaml) |
+| **Team** | kskbl |
+| **Prompt** | 4 · Industrial Systems — Drone Delivery Fleet Maintenance |
+| **Track** | On-campus (24 hours) |
+| **Repo** | https://github.com/yj657/sixsigmahackathon |
+| **Live API** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe |
+| **Interactive docs** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs |
+
+If the live URL shows **Unauthorized**, the Connect content Access setting still
+needs to be **Anyone** (Settings → Access on the content item).
 
 ---
 
-## Who it is for, and the decision it supports
+## Who it is for
 
-**User:** the fleet maintenance technician at a drone delivery startup.
+A **fleet maintenance technician** at a drone delivery startup. After logging
+flight hours and failures (including drones still flying), they decide whether
+to schedule preventive maintenance before the next mission instead of waiting
+for a mid-air failure.
 
-**Decision:** after logging flight hours and failures, including drones that are still flying,
-should the fleet be serviced **before the next `plan_hours` of flying**, or is it ok to fly?
-The tool answers `maintain now` or `ok to fly`, with the numbers behind the call.
+## What it computes
 
-## The method, in plain words
+Statistics live in one plain module: [`app/qc.py`](app/qc.py) (no FastAPI inside).
 
-The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](SPEC.md)).
+| Output | Meaning |
+|---|---|
+| `c_hat` | Weibull characteristic life (hours), MLE with right censoring, *m* = 2 fixed |
+| `mttf` | Mean time to failure |
+| `R_plan` | Reliability at `plan_hours` |
+| `z_plan` | Hazard at `plan_hours` |
+| `B10` | Time when 10% have failed |
+| `call` | `maintain now` if B10 ≤ plan_hours or R(plan) < 0.90; else `ok to fly` |
 
-- **Shape fixed at *m* = 2 (wear-out).** The chance of failing in the next hour grows as a drone
-  ages. This is an **assumption, not estimated from the data**; every response reports `m`.
-  The [codebook](data/README.md) shows where it is conservative.
-- **Drones still flying count.** A drone that has not failed is *right-censored*: it lasted at
-  least its current hours. Dropping those drones would make the fleet look much worse than it is.
-- **Scale by maximum likelihood.** With *m* known, the characteristic life is
-  \(\hat c = \big(\sum_{\text{all drones}} t_i^{\,m} \,/\, r\big)^{1/m}\), where *r* is the number
-  of failed drones. Everything else follows from \(\hat c\):
-  - MTTF \(= \hat c\,\Gamma(1 + 1/m)\)
-  - reliability \(R(t) = \exp(-(t/\hat c)^m)\)
-  - hazard \(z(t) = (m/\hat c)(t/\hat c)^{m-1}\)
-  - B10 life \(= \hat c\,(-\ln 0.9)^{1/m}\), the age by which 10% of drones fail
-- **The call:** `maintain now` if B10 ≤ `plan_hours` or R(`plan_hours`) < 0.90; otherwise
-  `ok to fly`.
+**Inputs (CSV columns):** `drone_id`, `time_hours`, `failed` (1 = failed, 0 = still
+flying / censored). Optional `plan_hours` (default 100).
 
-**Known answer** (SPEC §4 B, checked by the tests): flight hours `[100, 120, 150, 200, 200]` with
-failed `[1, 1, 1, 0, 0]` give Σt² = 126900, *r* = 3, so \(\hat c = \sqrt{42300} \approx 205.670\) h,
-MTTF ≈ 182.270 h, B10 ≈ 66.759 h → `maintain now` for a 100 h plan.
-
-**Limits:** *m* = 2 is assumed; R(`plan_hours`) is measured from 0 h, not from a drone's current
-age; the test datasets are small and invented, so the estimates are rough.
+Known-answer and every test dataset: [`demo/README.md`](demo/README.md) ·
+codebook: [`data/README.md`](data/README.md) · design: [`SPEC.md`](SPEC.md).
 
 ---
 
-## Run it
+## Run locally (one path)
 
-From the repo root, once. Any Python 3 works (the deployed app runs on 3.12):
+From the repo root:
 
 ```bash
 python3 -m venv .venv
-```
-
-```bash
-source .venv/bin/activate
-```
-
-```bash
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r app/requirements.txt
+pytest tests                       # expect 17 passed
+./app/testme.sh                    # http://127.0.0.1:8000/docs
 ```
 
-Check the statistics and input validation (expect `17 passed`):
+If `testme.sh` picks a system `python3.11` without packages, use:
 
 ```bash
-pytest tests
+.venv/bin/python -m uvicorn app:app --app-dir app --host 0.0.0.0 --port 8000
 ```
 
-**Start the tool with one command** (venv active), then open http://127.0.0.1:8000/docs:
-
-```bash
-./app/testme.sh
-```
-
-If `python3.11` is installed outside the venv and `testme.sh` stops with `No module named uvicorn`,
-use `.venv/bin/python -m uvicorn app:app --app-dir app --host 0.0.0.0 --port 8000` instead
-(details in [`app/README.md`](app/README.md)).
-
-Try it on a dataset, in a second terminal:
+Quick check (expect `c_hat` ≈ 205.670, `maintain now`):
 
 ```bash
 curl "http://127.0.0.1:8000/analyze/file?name=wearout_baseline.csv"
 ```
 
-Expected: `c_hat` ≈ 205.670, `call` `"maintain now"`.
+Full walkthrough of all three CSVs: **[`demo/README.md`](demo/README.md)**.
 
 ---
 
-## Inputs and parameters
+## HTTP API
 
-| Name | Where | Type and units | Required | Meaning |
-|---|---|---|---|---|
-| `times` | `POST /analyze` body | list of numbers, flight hours, each > 0 | yes | Hours on each drone at failure, or its current hours if still flying |
-| `failed` | `POST /analyze` body | list of 0/1, same length and order as `times` | yes | 1 = the drone failed; 0 = still flying or removed without failing (censored) |
-| `plan_hours` | body or query | number, hours, > 0 | no, default 100 | The flying horizon you want to check before the next service |
-| `m` | body or query | number, > 0 | no, default 2 | Weibull shape. Keep 2 unless you have a reason; it is an assumption |
-| `name` | `/analyze/file` query | a CSV filename in `data/` | yes, for that route | Which test dataset to read (local only) |
-
-As a CSV, the same data is one row per drone with columns `drone_id,time_hours,failed`; see the
-[codebook](data/README.md) for units, collection and the rules for valid rows.
-
-## Outputs
-
-| Field | Units | Meaning |
+| Method | Path | Notes |
 |---|---|---|
-| `c_hat` | hours | characteristic life: by this age about 63.2% of drones have failed |
-| `mttf` | hours | mean time to failure |
-| `B10` | hours | age by which 10% of drones are expected to fail |
-| `R_plan` | probability | chance a drone survives to `plan_hours`, counted from 0 h |
-| `z_plan` | failures per hour | hazard rate at `plan_hours` |
-| `call` | text | `maintain now` or `ok to fly` |
-| `n`, `r` | count | drones in the data, and how many failed |
-| `plan_hours`, `m` | — | the values used |
-| `source` | text | the CSV used (`/analyze/file` only) |
+| GET | `/` | API info |
+| GET | `/docs` | OpenAPI UI |
+| POST | `/analyze` | JSON: `times`, `failed`, optional `plan_hours` — **use this on Connect** |
+| GET | `/analyze/file?name=…` | Reads repo `data/` — **local only** |
 
-## Endpoints
-
-| Method | Path | What it does |
-|---|---|---|
-| GET | `/` | API info and links |
-| GET | `/docs` | Interactive docs: try every endpoint in the browser |
-| POST | `/analyze` | Runs the analysis on JSON `times`, `failed`, optional `plan_hours`, `m`. **Use this on the live server** |
-| GET | `/analyze/file?name=...` | Same analysis on a CSV in `data/`. **Local only**: `data/` is not deployed, so online it answers 404 |
-
-Bad input is refused, not guessed at: a missing, NaN or non-positive time, a `failed` other than
-0/1, empty or mismatched lists, or no failures at all return **HTTP 400** with a message (HTTP 422
-for a JSON `null` or `0.5`). See [`app/README.md`](app/README.md#input-validation).
-
-On the live server, send the data as JSON:
+Live example:
 
 ```bash
-curl -X POST "<LIVE_URL>/analyze" -H "Content-Type: application/json" -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0]}'
+LIVE_URL="https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe"
+curl -X POST "$LIVE_URL/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0],"plan_hours":100}'
 ```
 
-## How the code is organised
-
-The statistics live in one plain module, [`app/qc.py`](app/qc.py); the API in
-[`app/app.py`](app/app.py) only parses input and returns JSON.
-
-| Function in `app/qc.py` | What it does |
-|---|---|
-| `analyze_fleet(times, failed, plan_hours=100, m=2)` | Validates the data, fits \(\hat c\), returns every output field above |
-| `fit_weibull_scale(times, failed, m=2)` | Censored maximum-likelihood estimate of \(\hat c\) with known shape *m*; errors if *r* = 0 |
-| `weibull_mttf(c, m)` | MTTF \(= c\,\Gamma(1 + 1/m)\) |
-| `weibull_reliability(t, c, m)` | \(R(t) = \exp(-(t/c)^m)\) |
-| `weibull_hazard(t, c, m)` | \(z(t) = (m/c)(t/c)^{m-1}\) |
-| `b10_life(c, m)` | \(c\,(-\ln 0.9)^{1/m}\) |
-| `maintenance_call(c, plan_hours, m)` | `maintain now` or `ok to fly` (rule above) |
-| `validate_lifetime_sample(times, failed)` | Checks the lists are non-empty and the same length, checks every value, and counts the failures *r* |
-| `load_lifetime_csv(path)` | Reads a `time_hours,failed` CSV, rejecting bad cells by line number |
-| `coerce_time_hours(raw)`, `coerce_failed_flag(raw)` | Turn one cell into a valid time or 0/1 flag, or raise an error |
-
-Tests: [`tests/test_qc.py`](tests/test_qc.py) (known answers, every dataset, edge cases) and
-[`tests/test_api_validation.py`](tests/test_api_validation.py) (CSV validation).
-
-## Test datasets
-
-| File | Drones | Failed | Shows | Call at 100 h |
-|---|---|---|---|---|
-| [`wearout_baseline.csv`](data/wearout_baseline.csv) | 5 | 3 | normal mix of failed and still-flying drones; the known answer | maintain now (ok to fly at 50 h) |
-| [`early_wearout.csv`](data/early_wearout.csv) | 6 | 4 | parts that wear out fast | maintain now |
-| [`edge_all_censored.csv`](data/edge_all_censored.csv) | 3 | 0 | no failures yet | HTTP 400: cannot estimate |
-
-Every number, command and "how to read this" line is in [`demo/README.md`](demo/README.md).
+More detail: [`app/README.md`](app/README.md).
 
 ---
 
-## Repository map
+## Project layout
 
+```text
+app/qc.py          statistics
+app/app.py         FastAPI (thin)
+tests/             known-answer + validation
+data/              3 CSVs + codebook
+demo/README.md     judge walkthrough
+docs/              event docs, plan, team-split
 ```
-app/        the FastAPI app: qc.py (statistics), app.py (API), testme.sh, manifestme.sh, deployme.sh
-data/       three test datasets and the codebook
-demo/       the demonstration on every dataset
-tests/      pytest tests
-SPEC.md     what the tool is; CONTRACT.yaml the task ledger
-docs/       the hackathon's event pages (schedule, criteria, prompts) and our team notes
-```
 
-## Credits
+Event pages (schedule, criteria, …) stay under [`docs/`](docs/).
 
-Built from the [Cornell Six Sigma Hackathon starter repo](https://github.com/timothyfraser/sixsigmahackathon)
-by Timothy Fraser (MIT License, see [`LICENSE`](LICENSE)); the API started from its
-`demos/fastapi/` template. Weibull formulas follow the SYSEN 5300 course text.
+---
+
+## Out of scope (v1)
+
+No login/DB, no free-*m* MLE, no I-MR charts, no live drone telemetry.

@@ -91,7 +91,7 @@ tasks:
   - id: H-05
     title: Demonstration of the tool on every test dataset
     points: "10 - Tool Design: a clear demonstration of the tool, using test datasets"
-    status: in_progress
+    status: done
     owner: "jiangyijia"
     started_at: "2026-10-16 17:42"
     owns: ["demo/", "app/frontend/"]
@@ -100,7 +100,7 @@ tasks:
       URL to run, the numbers or chart the tool shows, and a one-line "how to
       read this"; a teammate who did not write it follows it and gets the same
       numbers.
-    result: ""
+    result: "demo/README walks all 3 CSVs + live Connect URL; local curls match known answers"
 
   - id: H-06
     title: Deploy to the course Posit Connect server
@@ -125,8 +125,8 @@ tasks:
   - id: H-07
     title: README and function documentation
     points: "10 - Tool Documentation: excellent, easy-to-follow documentation"
-    status: in_progress
-    owner: "jiangyijia"
+    status: done
+    owner: "jiangyijia + percy"
     started_at: "2026-10-16 18:11"
     owns: ["README.md", "app/README.md"]
     notes: >
@@ -137,7 +137,7 @@ tasks:
       how each function or endpoint works, how to run it in one command, the
       live URL, and links demo/README.md. A teammate who did not write the
       code follows it from a fresh clone and it works.
-    result: ""
+    result: "Root README is the tool page with live URL; app/README has local+deploy path"
 
   - id: H-08
     title: Reproducible public repo, submitted on Devpost
