@@ -9,8 +9,8 @@
 
 | 角色 | 姓名 | 主责 |
 |---|---|---|
-| **A · 数据 / 演示 / 文档** | （　　　） | 数据故事、手算核对、demo、README、Devpost |
-| **B · 后端 / 统计代码 / 部署** | （　　　） | `qc.py`、pytest、FastAPI、Posit Connect |
+| **A · 数据 / 演示 / 文档** | （　jiangyijia　　） | 数据故事、手算核对、demo、README、Devpost |
+| **B · 后端 / 统计代码 / 部署** | （　Percy　　） | `qc.py`、pytest、FastAPI、Posit Connect |
 
 两人共用：每个数字都能口头解释；合并前对方看一眼 diff；统计错了先改 SPEC/测试再改 UI。
 
