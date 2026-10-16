@@ -3,7 +3,9 @@
 **分支：** 只在 `kskbl` 上开发，推送到 `origin/kskbl`。  
 **仓库：** https://github.com/yj657/sixsigmahackathon  
 **截止（校内）：** 提交 Sat Oct 17, **1 PM ET**；showcase 2–3 PM。  
-**更新：** 2026-10-16 16:50 ET
+**更新：** 2026-10-16 18:23 ET  
+**Live API（Posit Connect）：** `…/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/`  
+（完整 host 见 Actions 日志 `LIVE:`；打开 `…/docs`。线上用 `POST /analyze`，不要用 `/analyze/file`。）
 
 | 角色 | 姓名 | 主责 |
 |---|---|---|
@@ -22,9 +24,9 @@
 | H-02 | `data/` + codebook | **done** | A（已入库） |
 | H-03 | `app/qc.py` + pytest | **done** | B · Percy（`3fb5451`） |
 | H-04 | FastAPI 接 `qc.py` | **done** | B · Percy（`bca5df7`） |
-| H-05 | demo 走查每个 CSV | **todo ← A 现在做** | A · jiangyijia |
-| H-06 | Posit Connect 部署 | **in_progress ← B 现在做** | B · Percy（workflow+manifest 已备好，差密钥/上线） |
-| H-07 | README | todo | A 主笔，B 补 URL |
+| H-05 | demo 走查每个 CSV | **todo / in progress ← A** | A · jiangyijia |
+| H-06 | Posit Connect 部署 | **done** | B · Percy（Actions #3 绿；`/docs` HTTP 200） |
+| H-07 | README | **todo ← A 现在做**（写入 live URL） | A 主笔，B 补测 |
 | H-08 | 公开 repo + Devpost | todo | 全组 |
 
 ---
@@ -156,8 +158,9 @@ I-MR：**默认不做**（仅 H-06 稳且有余力再议）。
 - [x] `pytest tests` 通过（H-03）  
 - [x] 本地 curl baseline → ĉ≈205.670（H-04）  
 - [ ] `early_wearout` → maintain now；`edge_all_censored` → 清晰错误（写进 demo）  
-- [ ] Posit Connect 公网 URL 可开（H-06）  
-- [ ] `demo/README.md` + 根 README（H-05 / H-07）  
+- [x] Posit Connect 公网 `/docs` HTTP 200（H-06；content `61dce257-81d0-44e8-84c4-c10cfeae1bbe`）  
+- [ ] 线上 `POST /analyze` 复现 ĉ≈205.670（A/B 各测一次）  
+- [ ] `demo/README.md` + 根 README 写上 live URL（H-05 / H-07）  
 - [ ] Devpost 已交；密钥不在 git 里（H-08）  
 
 ---
