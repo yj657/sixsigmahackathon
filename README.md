@@ -1,151 +1,192 @@
-![](docs/images/banner_thin.png)
+# Drone Fleet Reliability API
 
-# 🎯 Cornell Six Sigma Hackathon
+A small REST API that tells a drone delivery fleet **when to service drones before they fail in
+the air**, from nothing more than each drone's flight hours and whether it has failed.
 
-*Tackle real-world quality control problems drawn from industrial engineering,
-healthcare systems, and energy systems!*
+Built for the Cornell Six Sigma Hackathon, prompt 4: *Industrial Systems — Drone Delivery Fleet
+Maintenance*. The prompt: a drone startup only investigates mid-air failures after a crash; build
+a tool that helps technicians track wear-and-tear and improve reliability.
+
+| | |
+|---|---|
+| **Live API** | `TODO — paste the Posit Connect URL` (open `/docs` on it) |
+| **Demo walkthrough** | [`demo/README.md`](demo/README.md) — every dataset, command and number |
+| **Data codebook** | [`data/README.md`](data/README.md) — every file and column |
+| **API details** | [`app/README.md`](app/README.md) — endpoints, validation, deploy |
+| **Spec and task ledger** | [`SPEC.md`](SPEC.md), [`CONTRACT.yaml`](CONTRACT.yaml) |
 
 ---
 
-Your team picks a prompt, creates the data, and ships a working quality-control
-tool. **👉 [Register on Devpost](https://six-sigma-hackathon.devpost.com/)**
-(required, even if you don't have a team yet).
+## Who it is for, and the decision it supports
 
-### 📍 When & where
+**User:** the fleet maintenance technician at a drone delivery startup.
 
-| | 🏫 On-campus (24 hours) | 🌐 Virtual DL Challenge (7 days) |
+**Decision:** after logging flight hours and failures, including drones that are still flying,
+should the fleet be serviced **before the next `plan_hours` of flying**, or is it ok to fly?
+The tool answers `maintain now` or `ok to fly`, with the numbers behind the call.
+
+## The method, in plain words
+
+The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](SPEC.md)).
+
+- **Shape fixed at *m* = 2 (wear-out).** The chance of failing in the next hour grows as a drone
+  ages. This is an **assumption, not estimated from the data**; every response reports `m`.
+  The [codebook](data/README.md) shows where it is conservative.
+- **Drones still flying count.** A drone that has not failed is *right-censored*: it lasted at
+  least its current hours. Dropping those drones would make the fleet look much worse than it is.
+- **Scale by maximum likelihood.** With *m* known, the characteristic life is
+  \(\hat c = \big(\sum_{\text{all drones}} t_i^{\,m} \,/\, r\big)^{1/m}\), where *r* is the number
+  of failed drones. Everything else follows from \(\hat c\):
+  - MTTF \(= \hat c\,\Gamma(1 + 1/m)\)
+  - reliability \(R(t) = \exp(-(t/\hat c)^m)\)
+  - hazard \(z(t) = (m/\hat c)(t/\hat c)^{m-1}\)
+  - B10 life \(= \hat c\,(-\ln 0.9)^{1/m}\), the age by which 10% of drones fail
+- **The call:** `maintain now` if B10 ≤ `plan_hours` or R(`plan_hours`) < 0.90; otherwise
+  `ok to fly`.
+
+**Known answer** (SPEC §4 B, checked by the tests): flight hours `[100, 120, 150, 200, 200]` with
+failed `[1, 1, 1, 0, 0]` give Σt² = 126900, *r* = 3, so \(\hat c = \sqrt{42300} \approx 205.670\) h,
+MTTF ≈ 182.270 h, B10 ≈ 66.759 h → `maintain now` for a 100 h plan.
+
+**Limits:** *m* = 2 is assumed; R(`plan_hours`) is measured from 0 h, not from a drone's current
+age; the test datasets are small and invented, so the estimates are rough.
+
+---
+
+## Run it
+
+From the repo root, once. Any Python 3 works (the deployed app runs on 3.12):
+
+```bash
+python3 -m venv .venv
+```
+
+```bash
+source .venv/bin/activate
+```
+
+```bash
+pip install -r app/requirements.txt
+```
+
+Check the statistics and input validation (expect `17 passed`):
+
+```bash
+pytest tests
+```
+
+**Start the tool with one command** (venv active), then open http://127.0.0.1:8000/docs:
+
+```bash
+./app/testme.sh
+```
+
+If `python3.11` is installed outside the venv and `testme.sh` stops with `No module named uvicorn`,
+use `.venv/bin/python -m uvicorn app:app --app-dir app --host 0.0.0.0 --port 8000` instead
+(details in [`app/README.md`](app/README.md)).
+
+Try it on a dataset, in a second terminal:
+
+```bash
+curl "http://127.0.0.1:8000/analyze/file?name=wearout_baseline.csv"
+```
+
+Expected: `c_hat` ≈ 205.670, `call` `"maintain now"`.
+
+---
+
+## Inputs and parameters
+
+| Name | Where | Type and units | Required | Meaning |
+|---|---|---|---|---|
+| `times` | `POST /analyze` body | list of numbers, flight hours, each > 0 | yes | Hours on each drone at failure, or its current hours if still flying |
+| `failed` | `POST /analyze` body | list of 0/1, same length and order as `times` | yes | 1 = the drone failed; 0 = still flying or removed without failing (censored) |
+| `plan_hours` | body or query | number, hours, > 0 | no, default 100 | The flying horizon you want to check before the next service |
+| `m` | body or query | number, > 0 | no, default 2 | Weibull shape. Keep 2 unless you have a reason; it is an assumption |
+| `name` | `/analyze/file` query | a CSV filename in `data/` | yes, for that route | Which test dataset to read (local only) |
+
+As a CSV, the same data is one row per drone with columns `drone_id,time_hours,failed`; see the
+[codebook](data/README.md) for units, collection and the rules for valid rows.
+
+## Outputs
+
+| Field | Units | Meaning |
 |---|---|---|
-| **Who** | on-campus students (required unless excused) | distance-learning students, and anyone who can't attend in person |
-| **Runs** | Fri Oct 16, 3 PM → Sat Oct 17, 3 PM ET | Fri Oct 16, 3 PM → Fri Oct 23, 3 PM ET |
-| **Where** | Upson Hall 116 | online |
-| **Submissions due** | Sat Oct 17, **1 PM ET** sharp | Fri Oct 23, **3 PM ET** |
-| **Showcase** | Sat Oct 17, 2-3 PM (must attend) | — |
+| `c_hat` | hours | characteristic life: by this age about 63.2% of drones have failed |
+| `mttf` | hours | mean time to failure |
+| `B10` | hours | age by which 10% of drones are expected to fail |
+| `R_plan` | probability | chance a drone survives to `plan_hours`, counted from 0 h |
+| `z_plan` | failures per hour | hazard rate at `plan_hours` |
+| `call` | text | `maintain now` or `ok to fly` |
+| `n`, `r` | count | drones in the data, and how many failed |
+| `plan_hours`, `m` | — | the values used |
+| `source` | text | the CSV used (`/analyze/file` only) |
 
-Submit on **[Devpost](https://six-sigma-hackathon.devpost.com/)**: your repo
-link plus a demo. Full run of show: [🗓️ Schedule](docs/schedule.md).
+## Endpoints
 
----
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/` | API info and links |
+| GET | `/docs` | Interactive docs: try every endpoint in the browser |
+| POST | `/analyze` | Runs the analysis on JSON `times`, `failed`, optional `plan_hours`, `m`. **Use this on the live server** |
+| GET | `/analyze/file?name=...` | Same analysis on a CSV in `data/`. **Local only**: `data/` is not deployed, so online it answers 404 |
 
-### Quick Links
+Bad input is refused, not guessed at: a missing, NaN or non-positive time, a `failed` other than
+0/1, empty or mismatched lists, or no failures at all return **HTTP 400** with a message (HTTP 422
+for a JSON `null` or `0.5`). See [`app/README.md`](app/README.md#input-validation).
 
-- [🗓️ Schedule of Events](docs/schedule.md)
-- [💬 Prompts](docs/prompts.md) — *revealed at the start of the event*
-- [🔢 Evaluation Criteria](docs/criteria.md)
-- [📚 Resources for Building Your Tool](docs/resources.md)
-- [🧰 Starter Templates](demos/README.md)
-- [🤖 Agent Start Tutorial](docs/start.md) — type `/superagent` and your agent reads it for you
-- [⁉️ FAQ](#️-frequently-asked-questions)
+On the live server, send the data as JSON:
 
----
+```bash
+curl -X POST "<LIVE_URL>/analyze" -H "Content-Type: application/json" -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0]}'
+```
 
-> ### 📘🤖 New here? Read the [step-by-step start tutorial](docs/start.md) first
-> Ten minutes, for the whole team: set up your agent, **plan with `/superagent` on your
-> strongest model**, then **switch to a cheaper model** that builds and checks each task with
-> helper agents. **[→ docs/start.md](docs/start.md)**
+## How the code is organised
 
+The statistics live in one plain module, [`app/qc.py`](app/qc.py); the API in
+[`app/app.py`](app/app.py) only parses input and returns JSON.
 
-### 💡 The Challenge
+| Function in `app/qc.py` | What it does |
+|---|---|
+| `analyze_fleet(times, failed, plan_hours=100, m=2)` | Validates the data, fits \(\hat c\), returns every output field above |
+| `fit_weibull_scale(times, failed, m=2)` | Censored maximum-likelihood estimate of \(\hat c\) with known shape *m*; errors if *r* = 0 |
+| `weibull_mttf(c, m)` | MTTF \(= c\,\Gamma(1 + 1/m)\) |
+| `weibull_reliability(t, c, m)` | \(R(t) = \exp(-(t/c)^m)\) |
+| `weibull_hazard(t, c, m)` | \(z(t) = (m/c)(t/c)^{m-1}\) |
+| `b10_life(c, m)` | \(c\,(-\ln 0.9)^{1/m}\) |
+| `maintenance_call(c, plan_hours, m)` | `maintain now` or `ok to fly` (rule above) |
+| `validate_lifetime_sample(times, failed)` | Checks the lists are non-empty and the same length, checks every value, and counts the failures *r* |
+| `load_lifetime_csv(path)` | Reads a `time_hours,failed` CSV, rejecting bad cells by line number |
+| `coerce_time_hours(raw)`, `coerce_failed_flag(raw)` | Turn one cell into a valid time or 0/1 flag, or raise an error |
 
-Your team tackles one real-world quality control and reliability problem.
+Tests: [`tests/test_qc.py`](tests/test_qc.py) (known answers, every dataset, edge cases) and
+[`tests/test_api_validation.py`](tests/test_api_validation.py) (CSV validation).
 
-- 🧩 Prompts are released **at kickoff** — each tied to a dataset you design and
-  build yourself
-- 📊 **The statistics are the graded core.** Statistical process control,
-  process capability, reliability modeling, failure analysis. The app is the
-  delivery vehicle for the analysis, not the point
-- 🧱 Ship a a dashboard / web app (React or Shiny), plus **one** of: an R package or Python library AND/OR a public REST API
-  (FastAPI or plumber).
-- 🚀 Deploy it live to the course **Posit Connect** server
-- 🔢 Every project is scored 0-100 by the event staff.
-  [Read the criteria](docs/criteria.md)
+## Test datasets
 
----
+| File | Drones | Failed | Shows | Call at 100 h |
+|---|---|---|---|---|
+| [`wearout_baseline.csv`](data/wearout_baseline.csv) | 5 | 3 | normal mix of failed and still-flying drones; the known answer | maintain now (ok to fly at 50 h) |
+| [`early_wearout.csv`](data/early_wearout.csv) | 6 | 4 | parts that wear out fast | maintain now |
+| [`edge_all_censored.csv`](data/edge_all_censored.csv) | 3 | 0 | no failures yet | HTTP 400: cannot estimate |
 
-### 🤖 Build with AI — bring your own agent
-
-AI-assisted development is **expected and encouraged**. Use whatever you already
-have. The skill being tested is steering a capable assistant toward
-statistically correct work — which is exactly the skill this course is about.
-
-- [🧠 AI coding agents](docs/agents.md) — the popular ones, and how to pick
-- [🎙️ Tools](docs/tools.md) — Wispr Flow (talk to your agent) and Open Design
-- [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) — what the event is, the
-  repo map, the deploy target, the four-script contract
-- [`.claude/skills/superagent/`](.claude/skills/superagent/SKILL.md) — the one
-  skill you need: type `/superagent` and it routes to every other skill and
-  template for you. They all live in [`.claude/skills/`](.claude/skills/) if you
-  want to read them
-
-Two rules: everything you ship is **public and reproducible**, and you must be
-able to **explain every number your tool prints**.
+Every number, command and "how to read this" line is in [`demo/README.md`](demo/README.md).
 
 ---
 
-### ⁉️ Frequently Asked Questions
+## Repository map
 
-- **Who can participate?** Cornell students who are (a) in the Systems
-  Engineering MEng/MS program, OR (b) enrolled in SYSEN 5300 / MAE 5390, OR
-  (c) enrolled in SYSEN 5900. Teams of **2 to 5**.
+```
+app/        the FastAPI app: qc.py (statistics), app.py (API), testme.sh, manifestme.sh, deployme.sh
+data/       three test datasets and the codebook
+demo/       the demonstration on every dataset
+tests/      pytest tests
+SPEC.md     what the tool is; CONTRACT.yaml the task ledger
+docs/       the hackathon's event pages (schedule, criteria, prompts) and our team notes
+```
 
-- **On-campus or virtual?** On-campus students do the 24-hour event in Upson
-  Hall 116 (required unless excused). Distance-learning students, and anyone
-  who can't attend in person, do the 7-day Virtual DL Challenge.
-  [Dates above](#-when--where).
+## Credits
 
-- **What are the deadlines?** On-campus: submissions due Sat Oct 17, 1 PM ET
-  sharp; showcase Sat Oct 17, 2-3 PM (must attend). DL: submissions due
-  Fri Oct 23, 3 PM ET.
-
-- **What do we win?** On-campus winners: dinner for the team at the Statler
-  Dining Room. DL winners: bragging rights — infamy for all time.
-
-- **Do I need Six Sigma experience?** No. Trainings are provided during the
-  event, and many of the analyses can be learned in a few minutes. The
-  [course textbook](https://timothyfraser.com/sigma/) is open to everyone.
-
-- **Do I have to be a coding wizard?** No. Some prior experience in R or Python
-  is enough, and AI assistants close a lot of the gap. A winning project is a
-  smart, correct solution to a quality-control problem — not fancy code.
-
-- **What if I can't find team members?** Register on
-  [Devpost](https://six-sigma-hackathon.devpost.com/) anyway; we will match
-  you with a team.
-
-- **Do I have to be there the whole 24 hours?** A successful team works most of
-  it. Step out, sleep, stagger breaks — just keep someone on the team present.
-
-- **Can a teammate join the on-campus event remotely?** No. Anyone who can't
-  attend in person does the Virtual DL Challenge instead.
-
-- **What do we submit?** On Devpost: a link to your public GitHub repository
-  and a demo of a working prototype, deployed live to Posit Connect. At least
-  one team member needs a working (non-Cornell) GitHub account.
-
-- **What software do I need?** Install R or Python and at least one coding
-  interface (RStudio, VSCode, Cursor, Positron, ...) **before** the event
-  starts. If you plan to use an AI assistant, set it up beforehand too.
-
-- **What language should I use?** R, Python, or both. Code must be fully
-  reproducible and public.
-
-- **How are products evaluated?** Scored 0-100 by event staff on
-  [the criteria](docs/criteria.md): tool implementation (50), tool design
-  (25), documentation (25).
-
----
-
-### 👥 How to Join
-
-[Register on Devpost](https://six-sigma-hackathon.devpost.com/) — registration
-is required. Form a team of 2 to 5, or register solo and we'll match you.
-
----
-
-### 📚 Sign Up to Mentor
-
-Faculty, postdocs, PhD students, and developers are welcome as mentors.
-[Details here](docs/mentors.md).
-
----
-
-![](docs/images/banner_icons.png)
+Built from the [Cornell Six Sigma Hackathon starter repo](https://github.com/timothyfraser/sixsigmahackathon)
+by Timothy Fraser (MIT License, see [`LICENSE`](LICENSE)); the API started from its
+`demos/fastapi/` template. Weibull formulas follow the SYSEN 5300 course text.
