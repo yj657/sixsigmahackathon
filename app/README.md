@@ -75,11 +75,10 @@ server you can also open `/docs`, choose `POST /analyze`, click **Try it out**, 
 
 **Live Connect URL:**
 https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe  
-**Docs:** …/docs  
+**Docs:** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs  
 
-If you see Unauthorized in a logged-out browser, set the content **Access** to **Anyone** in
-Connect Settings. The examples below call the local server; on Connect use the live URL with
-`POST /analyze` only.
+The live API is open to anyone; no login or API key is needed. The examples below call the local
+server; on Connect use the live URL with `POST /analyze` only.
 
 `wearout_baseline.csv` → `c_hat` ≈ 205.670, `maintain now`:
 

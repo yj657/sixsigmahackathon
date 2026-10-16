@@ -22,8 +22,7 @@ a tool that helps technicians track wear-and-tear and improve reliability.
 | **API details** | [`app/README.md`](app/README.md) — endpoints, validation, deploy |
 | **Spec and task ledger** | [`SPEC.md`](SPEC.md), [`CONTRACT.yaml`](CONTRACT.yaml) |
 
-If the live URL shows **Unauthorized**, the Connect content Access setting still needs to be
-**Anyone** (Settings → Access on the content item).
+The live API is open to anyone; no login or API key is needed.
 
 ---
 

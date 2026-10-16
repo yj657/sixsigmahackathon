@@ -170,9 +170,8 @@ Counting survivors as censored is what keeps the tool from making the fleet look
 **Live URL:** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe  
 **Docs:** https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs  
 
-If the browser shows **Unauthorized**, open the app in Connect → **Settings → Access** and allow
-**Anyone** (or at least all logged-in users) so judges can open it without a publisher key. The API
-itself is fine: with access open, `POST /analyze` returns the same numbers as local.
+The live API is open to anyone; no login or API key is needed. `POST /analyze` returns the same
+numbers as the local API (checked without a key on 2026-10-16).
 
 Only `app/` is deployed, so the `data/` files are not on the server and `/analyze/file` works only
 locally. On the live server, send the same numbers with `POST /analyze`. Set the address once:
