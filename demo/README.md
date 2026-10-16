@@ -31,7 +31,7 @@ source .venv/bin/activate
 pip install -r app/requirements.txt
 ```
 
-Check the statistics first (expect `5 passed`):
+Check the statistics and the input validation first (expect `17 passed`):
 
 ```bash
 pytest tests
@@ -211,11 +211,13 @@ same JSON.
 - `R_plan` is measured from 0 h, not from a drone's current age.
 - The datasets are small and invented (see the [codebook](../data/README.md)); with 3–4 failures the
   estimates are rough.
-- Do not feed it blank or missing values: input checks for those are still being added.
+- Bad input is refused, not guessed at: a blank or `NaN` time, a time ≤ 0, or a `failed` other
+  than 0/1 returns HTTP 400 (HTTP 422 for a JSON `null` or `0.5`). Duplicate `drone_id`s are not
+  checked; see the [codebook's rules for valid data](../data/README.md#rules-for-valid-data).
 
 ## 7. Check it yourself
 
-- [ ] `pytest tests` prints `5 passed`.
+- [ ] `pytest tests` prints `17 passed`.
 - [ ] Each command in section 3 returns the numbers shown, to 3 decimals.
 - [ ] `plan_hours=50` flips the baseline to `ok to fly`.
 - [ ] The all-censored file returns HTTP 400, not a number.
