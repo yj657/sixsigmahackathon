@@ -33,8 +33,11 @@ else
   fi
 fi
 
-echo "Writing manifest.json for FastAPI app (excluding .env and caches)..."
+# Course Posit Connect exposes 3.12 (not 3.11). Override so the manifest
+# requests ~=3.12.0 even if this laptop's default Python is 3.11.
+echo "Writing manifest.json for FastAPI app (Python 3.12, excluding .env)..."
 "$RSC" write-manifest fastapi . --entrypoint app:app --overwrite \
+  --override-python-version 3.12.0 \
   -x '.env' \
   -x '.env.*' \
   -x '__pycache__' \
