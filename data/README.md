@@ -58,17 +58,29 @@ or removed for preventive maintenance **before** failing is recorded as
 
 ### Rules for valid data
 
-The tool assumes every row follows these rules. It does not check all of them
-yet, so check the file before sending it:
+Every row must follow these rules. The tool **checks the first three** and
+refuses the whole file with an error instead of returning numbers. The
+file endpoint (`/analyze/file`) answers HTTP 400 and names the line, counting
+the header as line 1 (for example `row 4: time_hours is missing`). It **does
+not check the last two**, so check those yourself before sending a file:
 
-- Every cell is filled in. No blanks, `NA` or `NaN`. A blank `time_hours`
-  currently crashes the file endpoint, and a `NaN` can give a wrong
-  **ok to fly**.
-- `time_hours` is a number greater than 0.
-- `failed` is exactly `0` or `1`. A `2` is counted as two failures, and a value
-  like `0.5` crashes the file endpoint.
-- `drone_id` is unique; one row per airframe.
-- The header row is exactly `drone_id,time_hours,failed`.
+- Every cell is filled in. No blanks, `NA` or `NaN`. A blank cell gives
+  `time_hours is missing` or `failed is missing`; `NaN` or `inf` gives
+  `time_hours must be finite (NaN/inf not allowed)`. *(checked)*
+- `time_hours` is a number greater than 0. Zero or a negative value gives
+  `time_hours must be positive`. *(checked)*
+- `failed` is exactly `0` or `1` (`1.0` is read as 1). Anything else, such as
+  `2`, `0.5` or `yes`, gives `failed must be 0 or 1`. *(checked)*
+- `drone_id` is unique; one row per airframe. *(not checked: a duplicated
+  airframe would be counted twice)*
+- The header row is exactly `drone_id,time_hours,failed`. *(partly checked: the
+  tool requires the `time_hours` and `failed` columns and ignores
+  `drone_id`)*
+
+When the same numbers are sent as JSON to `POST /analyze`, `NaN`, a `failed`
+of `2`, or empty or mismatched lists also give HTTP 400. A `null` or a
+non-whole `failed` such as `0.5` is refused earlier by the API's input schema,
+with HTTP 422.
 
 ## How you would collect this for real
 
