@@ -51,5 +51,17 @@ if grep -q '"\.env"' manifest.json; then
   exit 1
 fi
 
+# rsconnect may write requires ==3.12.0; Connect usually wants a 3.12.x band.
+"$PY" - <<'PY'
+import json
+from pathlib import Path
+p = Path("manifest.json")
+m = json.loads(p.read_text())
+m["python"]["version"] = "3.12.0"
+m.setdefault("environment", {}).setdefault("python", {})["requires"] = "~=3.12.0"
+p.write_text(json.dumps(m, indent=2) + "\n")
+print("patched environment.python.requires -> ~=3.12.0")
+PY
+
 echo "Done. manifest.json created in: $SCRIPT_DIR"
 echo "Confirm .env is NOT listed above; then commit manifest.json before deploy."
