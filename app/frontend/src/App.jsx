@@ -464,14 +464,6 @@ function WeibullPage({ estimateM, api }) {
                 ? 'Run wear-pattern check (free-m fit)'
                 : 'Run maintenance check (Weibull m=2)'}
           </button>
-          {result && !modalOpen && (
-            <button type="button" className="ghost-btn" onClick={() => setModalOpen(true)}>
-              Reopen last results
-            </button>
-          )}
-          <a className="ghost" href={`${API_URL}/docs`} target="_blank" rel="noreferrer">
-            Open API docs
-          </a>
         </div>
       </form>
 
@@ -645,11 +637,6 @@ function ImrPage({ api }) {
           <button type="submit" className="primary" disabled={busy || api.state === 'down'}>
             {busy ? 'Calculating…' : 'Run stability check (I-MR chart)'}
           </button>
-          {result && !modalOpen && (
-            <button type="button" className="ghost-btn" onClick={() => setModalOpen(true)}>
-              Reopen last results
-            </button>
-          )}
         </div>
       </form>
 
@@ -837,8 +824,8 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             Hover or tap the small <strong>i</strong> icons for short definitions of each number.
           </li>
           <li>
-            Close the window with <strong>Close</strong>, the dark background, or Escape. Use{' '}
-            <strong>Reopen last results</strong> if you closed it by mistake.
+            Close the window with <strong>Close</strong>, the dark background, or Escape. Open the{' '}
+            <strong>History</strong> page anytime to review past runs.
           </li>
         </ul>
       </section>
