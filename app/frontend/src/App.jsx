@@ -129,14 +129,18 @@ function FieldLabel({ htmlFor, children, topic, info }) {
   )
 }
 
-// Sample buttons show only the sample name; the description is behind an info icon.
-function SampleChips({ samples, onLoad, ariaLabel }) {
+// Compact preset pills — visually quieter than the Check tabs above.
+function SampleChips({ samples, onLoad, ariaLabel, selectedKey }) {
   return (
-    <div className="samples" role="group" aria-label={ariaLabel}>
+    <div className="presets" role="group" aria-label={ariaLabel}>
       {Object.entries(samples).map(([key, s]) => (
-        <div key={key} className="chip-wrap">
-          <button type="button" className="chip" onClick={() => onLoad(key)}>
-            <span className="chip-label">{s.label}</span>
+        <div key={key} className="preset-wrap">
+          <button
+            type="button"
+            className={selectedKey === key ? 'preset active' : 'preset'}
+            onClick={() => onLoad(key)}
+          >
+            {s.label}
           </button>
           <InfoTip topic={`${s.label} sample`} text={s.blurb} />
         </div>
@@ -602,11 +606,13 @@ function ResultModal({ open, title, onClose, children }) {
 }
 
 function WeibullPage({ estimateM, api }) {
-  const initial = estimateM ? SAMPLES.early : SAMPLES.baseline
+  const initialKey = estimateM ? 'early' : 'baseline'
+  const initial = SAMPLES[initialKey]
   const [timesText, setTimesText] = useState(initial.times.join(', '))
   const [failedText, setFailedText] = useState(initial.failed.join(', '))
   const [planHours, setPlanHours] = useState(String(initial.plan_hours))
   const [currentAge, setCurrentAge] = useState(String(initial.current_age ?? 0))
+  const [sampleKey, setSampleKey] = useState(initialKey)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
@@ -615,6 +621,7 @@ function WeibullPage({ estimateM, api }) {
   function loadSample(key) {
     const s = SAMPLES[key]
     startTransition(() => {
+      setSampleKey(key)
       setTimesText(s.times.join(', '))
       setFailedText(s.failed.join(', '))
       setPlanHours(String(s.plan_hours))
@@ -675,8 +682,17 @@ function WeibullPage({ estimateM, api }) {
 
   return (
     <>
-      <p className="section-label">Try a ready-made example, or type your own numbers below</p>
-      <SampleChips samples={SAMPLES} onLoad={loadSample} ariaLabel="Load a demo dataset" />
+      <div className="presets-block">
+        <p className="section-label">
+          Optional presets <span className="section-label-hint">— fill the form for you</span>
+        </p>
+        <SampleChips
+          samples={SAMPLES}
+          onLoad={loadSample}
+          selectedKey={sampleKey}
+          ariaLabel="Optional demo presets"
+        />
+      </div>
 
       {error && (
         <p className="error error-banner" role="alert">
@@ -698,7 +714,10 @@ function WeibullPage({ estimateM, api }) {
             id="times"
             rows={2}
             value={timesText}
-            onChange={(e) => setTimesText(e.target.value)}
+            onChange={(e) => {
+              setSampleKey(null)
+              setTimesText(e.target.value)
+            }}
             spellCheck={false}
             aria-invalid={!!check.fields.times}
             aria-describedby={check.fields.times ? errorsId : undefined}
@@ -715,7 +734,10 @@ function WeibullPage({ estimateM, api }) {
             id="failed"
             rows={2}
             value={failedText}
-            onChange={(e) => setFailedText(e.target.value)}
+            onChange={(e) => {
+              setSampleKey(null)
+              setFailedText(e.target.value)
+            }}
             spellCheck={false}
             aria-invalid={!!check.fields.failed}
             aria-describedby={check.fields.failed ? errorsId : undefined}
@@ -735,7 +757,10 @@ function WeibullPage({ estimateM, api }) {
             step="any"
             inputMode="decimal"
             value={currentAge}
-            onChange={(e) => setCurrentAge(e.target.value)}
+            onChange={(e) => {
+              setSampleKey(null)
+              setCurrentAge(e.target.value)
+            }}
             aria-invalid={!!check.fields.age}
             aria-describedby={check.fields.age ? errorsId : undefined}
           />
@@ -754,7 +779,10 @@ function WeibullPage({ estimateM, api }) {
             step="any"
             inputMode="decimal"
             value={planHours}
-            onChange={(e) => setPlanHours(e.target.value)}
+            onChange={(e) => {
+              setSampleKey(null)
+              setPlanHours(e.target.value)
+            }}
             aria-invalid={!!check.fields.plan}
             aria-describedby={check.fields.plan ? errorsId : undefined}
           />
@@ -790,6 +818,7 @@ function WeibullPage({ estimateM, api }) {
 
 function ImrPage({ api }) {
   const [valuesText, setValuesText] = useState(IMR_SAMPLES.shift.values.join(', '))
+  const [sampleKey, setSampleKey] = useState('shift')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
@@ -798,6 +827,7 @@ function ImrPage({ api }) {
   function loadSample(key) {
     const s = IMR_SAMPLES[key]
     startTransition(() => {
+      setSampleKey(key)
       setValuesText(s.values.join(', '))
       setError(null)
       setResult(null)
@@ -835,8 +865,17 @@ function ImrPage({ api }) {
 
   return (
     <>
-      <p className="section-label">Try a ready-made example, or type your own mission hours below</p>
-      <SampleChips samples={IMR_SAMPLES} onLoad={loadSample} ariaLabel="Load an I-MR sample" />
+      <div className="presets-block">
+        <p className="section-label">
+          Optional presets <span className="section-label-hint">— fill the form for you</span>
+        </p>
+        <SampleChips
+          samples={IMR_SAMPLES}
+          onLoad={loadSample}
+          selectedKey={sampleKey}
+          ariaLabel="Optional I-MR presets"
+        />
+      </div>
 
       {error && (
         <p className="error error-banner" role="alert">
@@ -858,7 +897,10 @@ function ImrPage({ api }) {
             id="values"
             rows={2}
             value={valuesText}
-            onChange={(e) => setValuesText(e.target.value)}
+            onChange={(e) => {
+              setSampleKey(null)
+              setValuesText(e.target.value)
+            }}
             spellCheck={false}
           />
         </div>

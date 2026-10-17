@@ -296,10 +296,69 @@ h1 {
 }
 
 .section-label {
-  margin: 0 0 0.5rem;
-  font-size: 0.88rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted);
+}
+
+.section-label-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.presets-block {
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.75rem 0.75rem;
+  border: 1px dashed color-mix(in srgb, var(--line) 85%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-elev) 35%, transparent);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.preset-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  position: relative;
+}
+
+.preset {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.preset:hover {
+  border-color: var(--muted);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--bg-elev) 70%, transparent);
+}
+
+.preset.active {
+  border-color: color-mix(in srgb, var(--focus) 55%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--focus) 12%, transparent);
 }
 
 .page-hint {
@@ -720,44 +779,6 @@ footer a {
   fill: var(--amber);
 }
 
-.samples {
-  display: grid;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-}
-
-@media (min-width: 560px) {
-  .samples {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.chip {
-  text-align: left;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    transform 0.15s ease;
-}
-
-.chip:hover {
-  border-color: var(--amber-dim);
-  background: color-mix(in srgb, var(--amber) 8%, transparent);
-  transform: translateY(-1px);
-}
-
-.chip-label {
-  display: block;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
 .panel {
   padding: 1.25rem;
   border: 1px solid var(--line);
@@ -1092,7 +1113,7 @@ input:focus {
 .stats dt,
 .chart-head,
 .field-head,
-.chip-wrap,
+.preset-wrap,
 .title-with-info {
   position: relative;
 }
@@ -1106,17 +1127,6 @@ input:focus {
 
 .field-head label {
   margin-top: 0;
-}
-
-/* Sample button with its info icon beside it. */
-.chip-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-}
-
-.chip-wrap .chip {
-  flex: 1;
 }
 
 .page-title {
