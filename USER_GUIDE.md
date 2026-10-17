@@ -4,8 +4,9 @@
 
 The Fleet Reliability Desk is for a **drone fleet maintenance technician**. You give it each
 drone's flight hours and whether it has failed — including drones that are **still flying** — and
-it tells you whether the fleet should be **serviced before the next block of flying** (`maintain
-now`) or can keep flying (`ok to fly`), with the numbers behind that call.
+it tells you whether **model-estimated reliability** for the next block of flying **meets the 90%
+threshold**, or is below it and a **maintenance review is recommended**, with the numbers behind
+that result. It is a statistical estimate, **not a guarantee of flight safety**.
 
 It also has a secondary page for checking whether **mission hours** are stable over time (an I-MR
 control chart).
@@ -60,23 +61,30 @@ sample or page title (explanations stay hidden until you ask for them). You can 
 
 | On screen | Units | Plain meaning |
 |---|---|---|
-| **ok to fly** | — | “Model-estimated reliability meets the 90% threshold.” |
-| **maintain now** | — | “Model-estimated reliability is below the 90% threshold; maintenance review is recommended.” |
-| *Next interval* | | *For a drone at its current age, flying the planned hours more* |
+| Banner (green) | — | “Model-estimated reliability meets the 90% threshold.” |
+| Banner (red) | — | “Model-estimated reliability is below the 90% threshold; maintenance review is recommended.” |
+| **Observations (drones) · Recorded failures** | count | How many drones the result is based on, and how many of them failed. Shown under every result |
+| **Drone age now · Planned additional flight hours** | flight hours | The two values the check used. Shown under every result |
+| **Model:** line | — | The model's assumption in one line (hover the ⓘ for details): see *Model assumptions* below |
+| *Next interval (conditional)* | | *For a drone that has already flown its current age, over the planned additional hours* |
 | **Chance to get through the next interval (conditional reliability)** | % | For a drone that has already flown its current age, the chance it flies the next planned hours without failing. 90% or more meets the threshold. Very small values show as `< 0.01%` |
 | **Failure rate at end of interval (hazard z)** | per flight hour | How fast a drone is failing once it reaches age + planned hours. Higher is riskier |
-| **Drone age now / planned hours** | flight hours | The two values the check used |
-| *Fleet lifetime (from new)* | | *Describe a new drone; they do not change with age* |
+| *Lifetime (from a new drone)* | | *Describe a brand-new drone, counted from 0 hours; they do not change with age* |
 | **10% failure age (B10 life)** | flight hours | Counted from new: by this age, 1 drone in 10 is expected to have failed |
 | **Average life (MTTF, mean time to failure)** | flight hours | Counted from new: how long a drone lasts on average before it fails |
 | **Characteristic life (ĉ)** | flight hours | Counted from new: by this age, about 63% of drones are expected to have failed |
-| **Wear-out shape, fixed (m)** | — | Set to 2 on the maintenance check: older drones are more likely to fail. Assumed, not measured |
-| **Drones / failures (n / r)** | count | Drones in your data, and how many of them failed |
-| **Reliability curve** | — | The share of new drones still working at each age. The horizontal line is 90% and the dot is the 10% failure age (B10). For an older drone, the shaded band is the next interval |
+| **Wear-out shape (m or m̂)** | — | Fixed at 2 on the maintenance check; estimated from your data on the wear-pattern check |
+| **Lifetime reliability curve (from new)** | — | The share of new drones still working at each age. The horizontal line is 90% and the dot is the 10% failure age (B10). For an older drone, the shaded band is the next interval; its conditional chance is the number above, not a point on this curve |
+
+**Conditional vs lifetime.** The *chance to get through the next interval* is **conditional**: it
+assumes the drone has already flown its current age without failing. *Lifetime* numbers are for a
+**new** drone. At age 0 the two coincide; for an older wear-out drone the conditional chance is
+lower.
 
 **The rule (one rule, applied by the server):** if the chance to get through the next interval is
-**90% or more**, the tool says `ok to fly`; otherwise `maintain now`. A result exactly equal to
-90% passes. For a new drone (age 0) the chance is the ordinary reliability R(planned hours), so
+**90% or more**, the banner says “Model-estimated reliability meets the 90% threshold.”;
+otherwise it says “Model-estimated reliability is below the 90% threshold; maintenance review is
+recommended.” A result exactly equal to 90% passes. For a new drone (age 0) the chance is the ordinary reliability R(planned hours), so
 the 10% failure age (B10) and the planned hours give the same answer: planned hours at or below
 B10 pass.
 
@@ -84,12 +92,12 @@ B10 pass.
 
 Load each sample and run it. These results were checked against the live API.
 
-| Sample | Fleet | Age now | Planned hours | Characteristic life (ĉ) | Average life (MTTF) | 10% failure age (B10) | Chance to get through the next interval | Call |
+| Sample | Observations / failures | Age now | Planned additional hours | Characteristic life (ĉ) | Average life (MTTF) | 10% failure age (B10) | Chance to get through the next interval | Banner |
 |---|---|---|---|---|---|---|---|---|
-| `wearout_baseline` | 5 drones: failed at 100, 120, 150 h; 2 still flying at 200 h | 0 | 100 | 205.670 h | 182.270 h | 66.759 h | 78.95% | **maintain now** |
-| `baseline · plan 50 h` | same fleet | 0 | 50 | 205.670 h | 182.270 h | 66.759 h | 94.26% | **ok to fly** |
-| `baseline · drone at 150 h` | same fleet | 150 | 50 | 205.670 h | 182.270 h | 66.759 h | 66.12% | **maintain now** |
-| `early_wearout` | 6 drones: failed at 40–55 h; 2 still flying at 60 h | 0 | 100 | 63.934 h | 56.660 h | 20.752 h | 8.66% | **maintain now** |
+| `wearout_baseline` (failed at 100, 120, 150 h; 2 still flying at 200 h) | 5 / 3 | 0 | 100 | 205.670 h | 182.270 h | 66.759 h | 78.95% | **below the 90% threshold** |
+| `baseline · plan 50 h` | 5 / 3 | 0 | 50 | 205.670 h | 182.270 h | 66.759 h | 94.26% | **meets the 90% threshold** |
+| `baseline · drone at 150 h` | 5 / 3 | 150 | 50 | 205.670 h | 182.270 h | 66.759 h | 66.12% | **below the 90% threshold** |
+| `early_wearout` (failed at 40–55 h; 2 still flying at 60 h) | 6 / 4 | 0 | 100 | 63.934 h | 56.660 h | 20.752 h | 8.66% | **below the 90% threshold** |
 
 How to read them:
 
@@ -126,9 +134,12 @@ made-up number in that case.
   about 1 means failures are random, below 1 means early failures. Use it as a check on the
   m = 2 assumption, not as the main decision. For example, on `early_wearout` it gives m̂ ≈ 5.709,
   a 10% failure age (B10) of 39.019 flight hours, and a chance to complete a 100-hour plan of
-  `< 0.01%`. With only a handful of failures, m̂ is uncertain.
-- **Mission-hours stability (I-MR chart)** takes **Hours flown per mission**, one value per
-  mission in the order flown. It shows:
+  `< 0.01%`. With only a handful of failures, m̂ is uncertain. Like the main check, every result
+  shows the observations, recorded failures, age and planned additional hours.
+- **Mission-hours stability (I-MR chart)** monitors whether mission lengths stay steady from one
+  mission to the next. It takes **Hours flown per mission**, one value per mission in the order
+  flown, and shows the number of **missions analysed** (failures, age and planned hours do not
+  apply here) and:
   - **Unusual missions** and **Unusual jumps between missions**: how many points fall outside the
     normal limits;
   - **Average mission length (x̄)**, **Average change between missions (mR̄)** and **Normal spread
@@ -143,8 +154,16 @@ made-up number in that case.
 
 ## 8. Assumptions and limits
 
-- **The shape is fixed at m = 2 on the main page.** This assumes wear-out; it is not estimated
-  from your data. If your parts fail at random or early in life, the call can be wrong.
+Every result shows a one-line **Model:** assumption; hover its ⓘ for the details.
+
+- **Maintenance check (Weibull m=2): the shape is fixed at 2**, so the model assumes an
+  **increasing hazard rate**: the older a drone, the faster it fails (wear-out). The shape is
+  assumed, not estimated. If your parts fail at random or early in life, the result can be wrong.
+- **Wear-pattern check (Free-m fit): the shape is estimated from your data**, and the fitted
+  shape sets the hazard pattern: above 1 the failure rate rises with age, about 1 it stays
+  constant, below 1 it falls.
+- **Mission-hours stability (I-MR chart)** only flags missions whose hours, or change from the
+  previous mission, fall outside the limits; it does not predict failures.
 - **Enter the right age.** The next-interval chance uses the `current_age` you enter; leaving it
   at 0 for an old drone makes it look safer than it is.
 - **Every drone is assumed to fail independently**, with one failure mode in the data.
@@ -152,8 +171,9 @@ made-up number in that case.
   much worse than it is.
 - **Small samples give rough answers.** The examples have only 3–4 failures.
 - **The samples are invented demo data**, not real fleet records.
-- **This is a decision aid, not a flight-safety certification system.** It does not replace
-  inspections, manufacturer limits, airworthiness rules or an engineer's judgement.
+- **These are model estimates, not a guarantee of flight safety.** The tool is a decision aid,
+  not a flight-safety certification system. It does not replace inspections, manufacturer limits,
+  airworthiness rules or an engineer's judgement.
 
 ## 9. Links
 

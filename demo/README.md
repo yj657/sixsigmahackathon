@@ -61,6 +61,12 @@ rounded; the API prints more digits.
 | `early_wearout.csv` | 6 | 4 | 63.934 | 56.660 | 20.752 | 0.087 | maintain now |
 | `edge_all_censored.csv` | 3 | 0 | — | — | — | — | HTTP 400 error |
 
+**What the desk shows:** never the raw `call` value. The banner is the `decision_message`
+("Model-estimated reliability meets the 90% threshold." or "… is below the 90% threshold;
+maintenance review is recommended."), followed by the observations, recorded failures, drone age
+and planned additional hours, and a one-line model assumption. The `call` values below are the
+API's, kept for compatibility. Results are model estimates, not a guarantee of flight safety.
+
 **The decision rule** (in `qc.py`, the only place it lives): **ok to fly** if the next-interval reliability `R_future` = R(`current_age` + `plan_hours`) / R(`current_age`) is at least 90% (with `current_age` = 0 this is R(`plan_hours`)); otherwise **maintain now** (one rule, decided in `qc.py`; exactly 90% passes). The API
 also returns `decision_message`, the sentence the UI shows. All rows above use `current_age` = 0, so
 `R_future` = R(`plan_hours`); the same fleet with `current_age` = 150 and `plan_hours` = 50 gives

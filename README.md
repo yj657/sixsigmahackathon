@@ -32,8 +32,12 @@ The live API is open to anyone; no login or API key is needed.
 **User:** the fleet maintenance technician at a drone delivery startup.
 
 **Decision:** after logging flight hours and failures, including drones that are still flying,
-should the fleet be serviced **before the next `plan_hours` of flying**, or is it ok to fly?
-The tool answers `maintain now` or `ok to fly`, with the numbers behind the call.
+does model-estimated reliability for the next `plan_hours` of flying **meet the 90% threshold**,
+or is a maintenance review recommended? The desk shows one of two sentences —
+"Model-estimated reliability meets the 90% threshold." or "Model-estimated reliability is below
+the 90% threshold; maintenance review is recommended." — together with the number of
+observations, recorded failures, the drone's age and the planned additional hours, and a one-line
+model assumption. Results are statistical estimates, **not a guarantee of flight safety**.
 
 ## The method, in plain words
 
@@ -61,6 +65,10 @@ The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](S
   At `current_age` = 0 (the default) this is exactly the lifetime R(`plan_hours`).
   **Lifetime metrics** (ĉ, MTTF, B10) describe a new drone; **next-interval metrics**
   (`R_future`, the hazard at the end of the interval, the call) depend on the drone's age.
+- **Model assumptions shown with every result:** the maintenance check fixes the shape at
+  *m* = 2, i.e. it assumes an **increasing hazard rate** (wear-out); the wear-pattern check
+  estimates the shape from the data, and the fitted shape sets the hazard pattern (> 1 rising,
+  ≈ 1 constant, < 1 falling); the I-MR page monitors whether mission lengths stay steady.
 - **One 90% rule, decided by the backend:** `R_future` ≥ 90% → `call` = `ok to fly` and
   `decision_message` = "Model-estimated reliability meets the 90% threshold."; below 90% →
   `maintain now` and "Model-estimated reliability is below the 90% threshold; maintenance review is
@@ -71,7 +79,8 @@ The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](S
 
 **Known answer** (SPEC §4 B, checked by the tests): flight hours `[100, 120, 150, 200, 200]` with
 failed `[1, 1, 1, 0, 0]` give Σt² = 126900, *r* = 3, so \(\hat c = \sqrt{42300} \approx 205.670\) h,
-MTTF ≈ 182.270 h, B10 ≈ 66.759 h → `maintain now` for a 100 h plan.
+MTTF ≈ 182.270 h, B10 ≈ 66.759 h → below the 90% threshold for a 100 h plan (`call` =
+`maintain now`).
 
 **Limits:** primary path assumes *m* = 2; all drones in the data are assumed to come from one
 wear-out population, and `current_age` must be the age of the drone you are checking; the test
@@ -172,7 +181,7 @@ As a CSV, the same data is one row per drone with columns `drone_id,time_hours,f
 | `R_future` | probability | chance a drone at `current_age` gets through the next `plan_hours` (conditional reliability) |
 | `R_plan` | probability | same value as `R_future`, kept for older clients |
 | `z_plan` | failures per hour | hazard rate at the end of the interval (`end_age`) |
-| `call` | text | `maintain now` or `ok to fly`, from the 90% rule |
+| `call` | text | `maintain now` or `ok to fly`, from the 90% rule (kept for API compatibility; the desk shows `decision_message` instead) |
 | `decision_message` | text | the sentence to show users (see the rule above) |
 | `meets_threshold`, `reliability_threshold` | bool, 0.90 | whether `R_future` ≥ 90%, and the threshold used |
 | `n`, `r` | count | drones in the data, and how many failed |
@@ -238,8 +247,8 @@ Tests: [`tests/test_qc.py`](tests/test_qc.py) (known answers, every dataset, edg
 
 | File | Drones | Failed | Shows | Call at 100 h |
 |---|---|---|---|---|
-| [`wearout_baseline.csv`](data/wearout_baseline.csv) | 5 | 3 | normal mix of failed and still-flying drones; the known answer | maintain now (ok to fly at 50 h) |
-| [`early_wearout.csv`](data/early_wearout.csv) | 6 | 4 | parts that wear out fast | maintain now |
+| [`wearout_baseline.csv`](data/wearout_baseline.csv) | 5 | 3 | normal mix of failed and still-flying drones; the known answer | below the 90% threshold (meets it at 50 h) |
+| [`early_wearout.csv`](data/early_wearout.csv) | 6 | 4 | parts that wear out fast | below the 90% threshold |
 | [`edge_all_censored.csv`](data/edge_all_censored.csv) | 3 | 0 | no failures yet | HTTP 400: cannot estimate |
 | [`imr_mission_hours.csv`](data/imr_mission_hours.csv) | 9 missions | — | planted late jump for I-MR (SPEC §4 D) | I OOC at points 7–9 |
 

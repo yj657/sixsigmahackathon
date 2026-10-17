@@ -2,21 +2,21 @@
 export const SAMPLES = {
   baseline: {
     label: 'wearout_baseline',
-    blurb: 'Known-answer B — expect maintain now at plan 100 h',
+    blurb: 'Known-answer B — expect below the 90% threshold at plan 100 h',
     times: [100, 120, 150, 200, 200],
     failed: [1, 1, 1, 0, 0],
     plan_hours: 100,
   },
   plan50: {
     label: 'baseline · plan 50 h',
-    blurb: 'Same fleet, shorter horizon — expect ok to fly',
+    blurb: 'Same fleet, shorter horizon — expect it to meet the 90% threshold',
     times: [100, 120, 150, 200, 200],
     failed: [1, 1, 1, 0, 0],
     plan_hours: 50,
   },
   aged: {
     label: 'baseline · drone at 150 h',
-    blurb: 'Same fleet, plan 50 h, but this drone has already flown 150 h — expect maintain now',
+    blurb: 'Same fleet, plan 50 h, but this drone has already flown 150 h — expect below the 90% threshold',
     times: [100, 120, 150, 200, 200],
     failed: [1, 1, 1, 0, 0],
     plan_hours: 50,
@@ -24,7 +24,7 @@ export const SAMPLES = {
   },
   early: {
     label: 'early_wearout',
-    blurb: 'Shorter lives — expect maintain now (free-m ≈ 5.7)',
+    blurb: 'Shorter lives — expect below the 90% threshold (free-m ≈ 5.7)',
     times: [40, 45, 50, 55, 60, 60],
     failed: [1, 1, 1, 1, 0, 0],
     plan_hours: 100,

@@ -214,3 +214,39 @@ def test_imr_overflow_is_calculation_error():
         imr_chart([1e308, -1e308, 1e308])
     with pytest.raises(ValueError, match="finite number"):
         imr_chart([10.0, True, 12.0])
+
+
+# --- 5. what every result reports (API unchanged; these pin the displayed values) -------
+
+
+@pytest.mark.parametrize(
+    "kwargs,n,r,age,plan,call,message",
+    [
+        ({"plan_hours": 100.0}, 5, 3, 0.0, 100.0, "maintain now", MSG_BELOW),
+        ({"plan_hours": 50.0}, 5, 3, 0.0, 50.0, "ok to fly", MSG_MEETS),
+        ({"plan_hours": 50.0, "current_age": 150.0}, 5, 3, 150.0, 50.0, "maintain now", MSG_BELOW),
+    ],
+)
+def test_result_reports_counts_age_plan_and_message(kwargs, n, r, age, plan, call, message):
+    out = analyze_fleet(BASE_T, BASE_F, strict=True, **kwargs)
+    assert (out["n"], out["r"]) == (n, r)
+    assert (out["current_age"], out["plan_hours"]) == (age, plan)
+    assert out["call"] == call  # API value kept for compatibility
+    assert out["decision_message"] == message  # what the UI displays
+    assert out["meets_threshold"] is (call == "ok to fly")
+
+
+def test_decision_messages_are_exact():
+    assert MSG_MEETS == "Model-estimated reliability meets the 90% threshold."
+    assert MSG_BELOW == (
+        "Model-estimated reliability is below the 90% threshold; "
+        "maintenance review is recommended."
+    )
+
+
+def test_free_m_result_reports_counts_and_estimated_shape():
+    t = [40.0, 45.0, 50.0, 55.0, 60.0, 60.0]
+    f = [1, 1, 1, 1, 0, 0]
+    out = analyze_fleet(t, f, plan_hours=100.0, estimate_m=True, strict=True)
+    assert (out["n"], out["r"], out["shape_mode"]) == (6, 4, "free")
+    assert out["m"] == pytest.approx(5.709, abs=1e-2)  # > 1: increasing hazard

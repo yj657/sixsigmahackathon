@@ -2,6 +2,18 @@ import { useEffect, useId, useMemo, useRef, useState, startTransition } from 're
 import { API_URL, analyzeFleet, checkApi, runImr } from './api.js'
 import { appendHistory, clearHistory, loadHistory } from './history.js'
 import { IMR_SAMPLES, SAMPLES } from './samples.js'
+import {
+  IMR_ASSUMPTION,
+  NOT_A_GUARANTEE,
+  NOT_A_GUARANTEE_DETAIL,
+  decisionHeadline,
+  historyCallLabel,
+  historyNeedsAttention,
+  imrBasis,
+  meetsThreshold,
+  weibullAssumption,
+  weibullBasis,
+} from './resultText.js'
 // Imported (not referenced by URL) so Vite bundles it with a hashed, relative path that
 // works under Connect's /content/<guid>/ prefix.
 import yijiaPhoto from './assets/yijia-jiang.jpg'
@@ -22,7 +34,7 @@ const CHECKS = [
     label: 'Should we service now?',
     short: 'Start here',
     blurb:
-      'Main tool for technicians: enter flight hours and failures, get maintain now or ok to fly. Assumes parts wear out with age (shape m = 2).',
+      'Main tool for technicians: enter flight hours and failures, and see whether model-estimated reliability for the next planned hours meets the 90% threshold. Assumes parts wear out with age (shape m = 2).',
   },
   {
     id: 'free',
@@ -319,34 +331,64 @@ function ReliabilityCurve({ c, m = 2, currentAge = 0, endAge, B10 }) {
   )
 }
 
-// One Weibull result view for the Check page and the History detail. The decision text
+// Facts every result is based on (sample size, failures, age, plan), shown as one row.
+function BasisRow({ items }) {
+  return (
+    <dl className="basis" aria-label="This result is based on">
+      {items.map((it) => (
+        <div key={it.key}>
+          <dt>{it.label}</dt>
+          <dd>{it.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+// One short model-assumption line; the longer explanation sits behind the info icon.
+function AssumptionLine({ topic, summary, detail }) {
+  return (
+    <p className="assumption">
+      <span className="assumption-label">Model:</span> {summary}
+      <InfoTip topic={topic} text={detail} />
+    </p>
+  )
+}
+
+function NotAGuarantee() {
+  return (
+    <p className="guarantee-note">
+      {NOT_A_GUARANTEE}
+      <InfoTip topic="Not a guarantee" text={NOT_A_GUARANTEE_DETAIL} />
+    </p>
+  )
+}
+
+// One Weibull result view for the Check page and the History detail. The decision sentence
 // comes from the backend (decision_message); the frontend never re-applies the rule.
 function WeibullResultView({ result, estimateM }) {
   const age = Number.isFinite(result.current_age) ? result.current_age : 0
   const end = Number.isFinite(result.end_age) ? result.end_age : age + result.plan_hours
   const rFuture = Number.isFinite(result.R_future) ? result.R_future : result.R_plan
-  const message =
-    result.decision_message ||
-    (result.call === 'maintain now'
-      ? 'Saved with an earlier version: maintain now.'
-      : 'Saved with an earlier version: ok to fly.')
+  const assumption = weibullAssumption(result, estimateM)
   return (
     <section className="result" aria-live="polite">
-      <p className={result.call === 'maintain now' ? 'call danger' : 'call safe'}>
-        <strong>{result.call}</strong>
-        <span>
-          {message}
-          {estimateM
-            ? ` Wear-out shape estimated from your data (m̂ = ${fmt(result.m, 3)}).`
-            : ' Wear-out shape fixed at m = 2.'}
-        </span>
+      <p className={meetsThreshold(result) ? 'call safe' : 'call danger'}>
+        <strong>{decisionHeadline(result)}</strong>
       </p>
+      <BasisRow items={weibullBasis(result)} />
+      <AssumptionLine
+        topic={estimateM ? 'Estimated shape' : 'Fixed shape m = 2'}
+        summary={assumption.summary}
+        detail={assumption.detail}
+      />
+      <NotAGuarantee />
 
       <h3 className="stats-head">
-        Next interval: {fmt(age, 0)} → {fmt(end, 0)} flight hours
+        Next interval (conditional): {fmt(age, 0)} → {fmt(end, 0)} flight hours
         <InfoTip
           topic="Next interval"
-          text="These results are for a drone that has already flown its current age and will fly the planned hours more. The 90% decision uses the chance to get through this interval."
+          text={`Conditional results: for a drone that has already flown ${fmt(age, 0)} hours without failing, over the next ${fmt(result.plan_hours, 0)} hours. The 90% threshold is applied to this chance.`}
         />
       </h3>
       <dl className="stats">
@@ -354,7 +396,7 @@ function WeibullResultView({ result, estimateM }) {
           label="Chance to get through the next interval"
           abbr="conditional reliability"
           value={fmtPct(rFuture)}
-          info={`For a drone that has already flown ${fmt(age, 0)} hours, the chance it flies the next ${fmt(result.plan_hours, 0)} hours without failing. 90% or more meets the threshold.`}
+          info={`Given the drone has already flown ${fmt(age, 0)} hours, the chance it flies the next ${fmt(result.plan_hours, 0)} hours without failing. 90% or more meets the threshold. For a new drone (age 0) this equals the lifetime reliability over the planned hours.`}
         />
         <Stat
           label="Failure rate at end of interval"
@@ -363,20 +405,13 @@ function WeibullResultView({ result, estimateM }) {
           unit="per flight hour"
           info={`How fast a drone is failing once it reaches ${fmt(end, 0)} hours. Higher is riskier.`}
         />
-        <Stat
-          label="Drone age now / planned hours"
-          abbr="current_age / plan_hours"
-          value={`${fmt(age, 0)} / ${fmt(result.plan_hours, 0)}`}
-          unit="flight hours"
-          info="Hours already flown, and the additional hours planned before the next service."
-        />
       </dl>
 
       <h3 className="stats-head">
-        Fleet lifetime (from new)
+        Lifetime (from a new drone)
         <InfoTip
-          topic="Fleet lifetime"
-          text="These describe a brand-new drone from this fleet. They do not change with the drone's current age."
+          topic="Lifetime"
+          text="Lifetime results describe a brand-new drone from this fleet, counted from 0 flight hours. They do not change with the drone's current age."
         />
       </h3>
       <dl className="stats">
@@ -407,27 +442,35 @@ function WeibullResultView({ result, estimateM }) {
           value={fmt(result.m, estimateM ? 3 : 0)}
           info={
             estimateM
-              ? 'Above 1: parts wear out with age. About 1: failures are random. Below 1: early failures.'
-              : 'Assumed, not measured: older drones are more likely to fail.'
+              ? 'Estimated from your data. Above 1: failure rate rises with age. About 1: constant. Below 1: falls with age.'
+              : 'Set to 2, not estimated: the model assumes the failure rate rises with age.'
           }
-        />
-        <Stat
-          label="Drones / failures"
-          abbr="n / r"
-          value={`${result.n} / ${result.r}`}
-          info="Drones in your data, and how many of them failed."
         />
       </dl>
 
       <h3 className="chart-head">
-        Reliability curve
+        Lifetime reliability curve (from new)
         <InfoTip
-          topic="Reliability curve"
-          text="The share of new drones still working at each age, in flight hours. The horizontal line is 90% and the dot is the 10% failure age (B10). The shaded band is the next interval, from the drone's current age to the end of the planned hours."
+          topic="Lifetime reliability curve"
+          text="The share of new drones still working at each age, in flight hours. The horizontal line is 90% and the dot is the 10% failure age (B10). For an older drone, the shaded band is the next interval; its conditional chance is shown above, not read off this curve."
         />
       </h3>
       <ReliabilityCurve c={result.c_hat} m={result.m} currentAge={age} endAge={end} B10={result.B10} />
     </section>
+  )
+}
+
+// What the I-MR chart monitors, and how many missions it used. Shared by Check and History.
+function ImrBasisAndAssumption({ result }) {
+  return (
+    <>
+      <BasisRow items={imrBasis(result)} />
+      <AssumptionLine
+        topic="What the I-MR chart monitors"
+        summary={IMR_ASSUMPTION.summary}
+        detail={IMR_ASSUMPTION.detail}
+      />
+    </>
   )
 }
 
@@ -833,6 +876,7 @@ function ImrPage({ api }) {
       >
         {result && (
           <section className="result" aria-live="polite">
+            <ImrBasisAndAssumption result={result} />
             <dl className="stats">
               <Stat
                 label="Unusual missions"
@@ -918,8 +962,9 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
         <p>
           You are a <strong>fleet maintenance technician</strong> at a drone delivery startup. After
           logging flight hours — including drones still in the air — you need a clear call before
-          the next missions: <strong>maintain now</strong> (ground and service) or{' '}
-          <strong>ok to fly</strong>.
+          the next missions: does model-estimated reliability meet the{' '}
+          <strong>90% threshold</strong>, or is a <strong>maintenance review</strong> recommended?
+          The answer is a statistical estimate, not a guarantee of flight safety.
         </p>
         <p className="manual-note">
           Calculator status right now: <strong>{apiReady ? 'Ready' : 'Offline'}</strong>.
@@ -940,8 +985,10 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             Press <strong>Run</strong>. A results window pops up.
           </li>
           <li>
-            Read the banner: for that sample you should see <strong>maintain now</strong> and
-            characteristic life ≈ <strong>205.7</strong> flight hours.
+            Read the banner: for that sample you should see{' '}
+            <strong>below the 90% threshold; maintenance review is recommended</strong>, based on 5
+            drones and 3 recorded failures, with characteristic life ≈ <strong>205.7</strong>{' '}
+            flight hours.
           </li>
         </ol>
         <button type="button" className="primary" onClick={() => onOpenCheck('fixed')}>
@@ -976,8 +1023,8 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             <tr>
               <td>Planned flight hours</td>
               <td>
-                How long until the next planned service window (default 100). Shorter plans are
-                easier to clear as ok to fly.
+                Additional flight hours planned until the next service (default 100). Shorter
+                plans are more likely to meet the 90% threshold.
               </td>
             </tr>
           </tbody>
@@ -997,11 +1044,15 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             90%.
           </li>
           <li>
-            <strong>ok to fly</strong> — “Model-estimated reliability meets the 90% threshold.”
+            The banner shows one of two sentences: “Model-estimated reliability meets the 90%
+            threshold.” or “Model-estimated reliability is below the 90% threshold; maintenance
+            review is recommended.”
           </li>
           <li>
-            <strong>maintain now</strong> — “Model-estimated reliability is below the 90% threshold;
-            maintenance review is recommended.”
+            Under it: how many drones and recorded failures the result is based on, the drone's age
+            now, the planned additional hours, and the model's assumption (hover the{' '}
+            <strong>i</strong> for details). Results are estimates, not a guarantee of flight
+            safety.
           </li>
           <li>
             <strong>Drone age now</strong> — hours already flown. Leave it at 0 for a new drone; an
@@ -1034,19 +1085,19 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             <tr>
               <td>wearout_baseline · plan 100</td>
               <td>
-                ĉ ≈ 205.7 h → <strong>maintain now</strong>
+                ĉ ≈ 205.7 h → <strong>below the 90% threshold</strong>
               </td>
             </tr>
             <tr>
               <td>baseline · plan 50 h</td>
               <td>
-                Same fleet, shorter plan → <strong>ok to fly</strong>
+                Same fleet, shorter plan → <strong>meets the 90% threshold</strong>
               </td>
             </tr>
             <tr>
               <td>early_wearout</td>
               <td>
-                Short lives → <strong>maintain now</strong> (harsh wear)
+                Short lives → <strong>below the 90% threshold</strong> (harsh wear)
               </td>
             </tr>
             <tr>
@@ -1188,8 +1239,9 @@ function ApiDocsPage() {
   -H "Content-Type: application/json" \\
   -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0],"plan_hours":100,"current_age":0}'`}</pre>
         <p className="manual-note">
-          Expect c_hat ≈ 205.670, R_future ≈ 0.7895 and call &quot;maintain now&quot; with the
-          below-90% decision_message.
+          Expect c_hat ≈ 205.670, R_future ≈ 0.7895, n = 5, r = 3 and the below-90%
+          decision_message. (The API also returns call &quot;maintain now&quot; / &quot;ok to
+          fly&quot; for older clients; the desk shows only decision_message.)
         </p>
       </section>
     </article>
@@ -1414,12 +1466,10 @@ function HistoryPage() {
                   <span className="history-title">{e.title}</span>
                   <span
                     className={
-                      e.call === 'maintain now' || e.call === 'shift flagged'
-                        ? 'history-call danger'
-                        : 'history-call safe'
+                      historyNeedsAttention(e) ? 'history-call danger' : 'history-call safe'
                     }
                   >
-                    {e.call || '—'}
+                    {historyCallLabel(e)}
                   </span>
                   <span className="history-summary">{e.summary}</span>
                 </button>
@@ -1439,6 +1489,7 @@ function HistoryPage() {
         )}
         {selected && selectedResult && selected.kind === 'imr' && (
           <section className="result">
+            <ImrBasisAndAssumption result={selectedResult} />
             <dl className="stats">
               <Stat
                 label="Unusual missions"
@@ -1512,7 +1563,7 @@ function CheckPage({ api, check, setCheck, onOpenHelp }) {
     <>
       <header className="top top-compact">
         <div className="hero">
-          <h1>Service before the next mission — or ok to fly?</h1>
+          <h1>Does the next interval meet the 90% reliability threshold?</h1>
           <p className="lede lede-compact">
             Enter hours and failures, then Run.{' '}
             <button type="button" className="footer-link" onClick={onOpenHelp}>

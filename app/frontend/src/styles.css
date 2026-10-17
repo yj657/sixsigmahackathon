@@ -958,9 +958,9 @@ input:focus {
 }
 
 .call strong {
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
-  text-transform: lowercase;
+  font-size: 1.1rem;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
 .call span {
@@ -1239,4 +1239,50 @@ input[aria-invalid='true'] {
 
 .curve .mark.now {
   stroke-dasharray: 3 3;
+}
+
+/* "Based on" row: sample size, failures, age, planned hours. */
+.basis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 1rem;
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+@media (min-width: 560px) {
+  .basis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.basis dt {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.basis dd {
+  margin: 0.1rem 0 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One-line model assumption and the not-a-guarantee notice (details in tooltips). */
+.assumption,
+.guarantee-note {
+  position: relative;
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+}
+
+.assumption-label {
+  font-weight: 600;
+}
+
+.guarantee-note {
+  margin-bottom: 1rem;
+  color: var(--muted);
 }
