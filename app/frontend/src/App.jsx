@@ -686,7 +686,7 @@ function WeibullPage({ estimateM, api }) {
       )}
 
       <form className="panel" onSubmit={onAnalyze}>
-        <div className="fields">
+        <div className="fields fields-weibull">
           <FieldLabel
             htmlFor="times"
             topic="Flight hours per drone"
@@ -1788,7 +1788,7 @@ export default function App() {
         </nav>
       </header>
 
-      <div className={nav === 'help' ? 'shell shell-wide' : 'shell'}>
+      <div className={nav === 'help' || nav === 'check' ? 'shell shell-wide' : 'shell'}>
         {nav === 'check' && (
           <CheckPage
             api={api}

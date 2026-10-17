@@ -125,6 +125,30 @@ body {
   padding: 1.75rem 1.25rem 4rem;
 }
 
+/* Check page in the wide container (>= 900px): status panel centred on the heading, and the
+   Weibull form in two columns — the two lists on the left, age and planned hours on the
+   right (the fields fill top-to-bottom, column by column). */
+@media (min-width: 900px) {
+  .shell-wide .top {
+    align-items: center;
+  }
+
+  .shell-wide .fields-weibull {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: repeat(4, auto);
+    grid-auto-flow: column;
+    column-gap: 1.5rem;
+  }
+
+  .shell-wide .fields-weibull textarea {
+    min-height: 4.5rem;
+  }
+
+  .shell-wide .fields-weibull > input {
+    align-self: start;
+  }
+}
+
 /* Help page: wider container; prose inside still keeps a readable line length. */
 .shell.shell-wide {
   max-width: 1160px;
@@ -885,7 +909,7 @@ input:focus {
 }
 
 .modal {
-  width: min(720px, 100%);
+  width: min(960px, 100%);
   max-height: min(88vh, 900px);
   display: flex;
   flex-direction: column;
@@ -940,6 +964,11 @@ input:focus {
 
 .modal-body .result {
   margin-top: 0;
+}
+
+.modal-body .curve {
+  max-width: 820px;
+  margin-inline: auto;
 }
 
 @keyframes fade-in {
