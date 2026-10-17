@@ -39,13 +39,15 @@ In the page header, **Calculation service (API)** should say **connected**. If i
 5. Click **Run maintenance check (Weibull m=2)** (or **Run wear-pattern check (free-m fit)** on
    the wear-pattern page).
 
-The result shows a coloured banner with the call, a set of labelled results with a one-line
-explanation under each, and a reliability curve. If something is wrong with the input, a red
-message explains what to fix.
+The result shows a coloured banner with the call, a set of labelled results, and a reliability
+curve. If something is wrong with the input, a red message explains what to fix.
 
 ## 4. Reading the results
 
-Each result is shown with a plain name, the technical name in brackets, and its units.
+Each result is shown with a plain name, the technical name in brackets, and its units. For a
+short explanation, **hover over the small ⓘ icon** next to a result or chart title. You can also
+**Tab** to the icon with the keyboard, or **click/tap** it to keep the explanation open; press
+**Escape** or click elsewhere to close it.
 
 | On screen | Units | Plain meaning |
 |---|---|---|

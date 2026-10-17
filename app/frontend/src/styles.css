@@ -444,13 +444,78 @@ input:focus {
   font-weight: 400;
 }
 
-.stats dd.stat-note {
-  margin-top: 0.3rem;
-  font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 0.78rem;
-  line-height: 1.35;
+/* Info icon + tooltip. The tooltip is positioned under the metric label or chart heading,
+   spanning its width, so it never runs off the screen. */
+.stats dt,
+.chart-head {
+  position: relative;
+}
+
+.chart-head {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.info {
+  display: inline;
+}
+
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.35rem;
+  padding: 0;
+  vertical-align: 0.05em;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  background: transparent;
   color: var(--muted);
+  font: italic 600 0.7rem/1 Georgia, 'Times New Roman', serif;
+  cursor: help;
+}
+
+.info-btn:hover,
+.info-btn[aria-expanded='true'] {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.info-tip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-top: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
+  color: var(--ink);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-style: normal;
   font-weight: 400;
+  line-height: 1.4;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.info-tip.show {
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-tip {
+    transition: none;
+  }
 }
 
 .curve {

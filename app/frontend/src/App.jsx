@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, startTransition } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, startTransition } from 'react'
 import { API_URL, analyzeFleet, checkApi, runImr } from './api.js'
 import { IMR_SAMPLES, SAMPLES } from './samples.js'
 
@@ -30,18 +30,74 @@ function fmtPct(fraction, d = 2) {
   return `${pct.toFixed(d)}%`
 }
 
-function Stat({ label, abbr, value, unit, note }) {
+// Small "i" button that explains a metric. Shows on hover or keyboard focus; click/tap pins it
+// open; Escape or a click elsewhere closes it. The text is always in the DOM for screen readers.
+function InfoTip({ topic, text }) {
+  const id = useId()
+  const wrap = useRef(null)
+  const [pinned, setPinned] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const shown = pinned || hovered || focused
+
+  useEffect(() => {
+    if (!pinned) return undefined
+    const onDown = (e) => {
+      if (wrap.current && !wrap.current.contains(e.target)) setPinned(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [pinned])
+
+  return (
+    <span
+      className="info"
+      ref={wrap}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        type="button"
+        className="info-btn"
+        aria-label={`What does “${topic}” mean?`}
+        aria-describedby={id}
+        aria-expanded={shown}
+        onClick={() => setPinned((p) => !p)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setPinned(false)
+            setFocused(false)
+            setHovered(false)
+          }
+        }}
+      >
+        i
+      </button>
+      <span id={id} role="tooltip" className={shown ? 'info-tip show' : 'info-tip'}>
+        {text}
+      </span>
+    </span>
+  )
+}
+
+function Stat({ label, abbr, value, unit, info }) {
   return (
     <div>
       <dt>
         {label}
         {abbr && <span className="stat-abbr"> ({abbr})</span>}
+        {info && <InfoTip topic={label} text={info} />}
       </dt>
       <dd>
         {value}
         {unit && <span className="stat-unit"> {unit}</span>}
       </dd>
-      {note && <dd className="stat-note">{note}</dd>}
     </div>
   )
 }
@@ -100,7 +156,7 @@ function ReliabilityCurve({ c, m = 2, planHours, B10 }) {
   )
 }
 
-function ImrSpark({ title, points, cl, ucl, lcl, valueKey }) {
+function ImrSpark({ title, info, points, cl, ucl, lcl, valueKey }) {
   const W = 560
   const H = 160
   const pad = { l: 40, r: 16, t: 14, b: 24 }
@@ -114,7 +170,10 @@ function ImrSpark({ title, points, cl, ucl, lcl, valueKey }) {
 
   return (
     <div className="imr-block">
-      <h3>{title}</h3>
+      <h3 className="chart-head">
+        {title}
+        {info && <InfoTip topic={title} text={info} />}
+      </h3>
       <svg viewBox={`0 0 ${W} ${H}`} className="curve" role="img" aria-label={title}>
         <line className="limit" x1={pad.l} x2={W - pad.r} y1={y(ucl)} y2={y(ucl)} />
         <line className="limit mid" x1={pad.l} x2={W - pad.r} y1={y(cl)} y2={y(cl)} />
@@ -306,41 +365,41 @@ function WeibullPage({ estimateM, api }) {
               label="Chance to complete the plan"
               abbr="reliability R"
               value={fmtPct(result.R_plan)}
-              note={`Share of drones expected to fly ${fmt(result.plan_hours, 0)} hours without failing. Below 90% means service first.`}
+              info={`Share of drones expected to fly ${fmt(result.plan_hours, 0)} hours without failing. Below 90% means service first.`}
             />
             <Stat
               label="10% failure age"
               abbr="B10 life"
               value={fmt(result.B10)}
               unit="flight hours"
-              note="By this age, 1 drone in 10 is expected to have failed. Service before it."
+              info="By this age, 1 drone in 10 is expected to have failed. Service before it."
             />
             <Stat
               label="Average life"
               abbr="MTTF, mean time to failure"
               value={fmt(result.mttf)}
               unit="flight hours"
-              note="How long a drone lasts on average before it fails."
+              info="How long a drone lasts on average before it fails."
             />
             <Stat
               label="Characteristic life"
               abbr="ĉ"
               value={fmt(result.c_hat)}
               unit="flight hours"
-              note="By this age, about 63% of drones are expected to have failed."
+              info="By this age, about 63% of drones are expected to have failed."
             />
             <Stat
               label="Failure rate at planned hours"
               abbr="hazard z"
               value={fmt(result.z_plan, 5)}
               unit="per flight hour"
-              note={`How fast a drone that has reached ${fmt(result.plan_hours, 0)} hours is failing. Higher is riskier.`}
+              info={`How fast a drone that has reached ${fmt(result.plan_hours, 0)} hours is failing. Higher is riskier.`}
             />
             <Stat
               label={estimateM ? 'Wear-out shape, estimated' : 'Wear-out shape, fixed'}
               abbr={estimateM ? 'm̂' : 'm'}
               value={fmt(result.m, estimateM ? 3 : 0)}
-              note={
+              info={
                 estimateM
                   ? 'Above 1: parts wear out with age. About 1: failures are random. Below 1: early failures.'
                   : 'Assumed, not measured: older drones are more likely to fail.'
@@ -350,21 +409,24 @@ function WeibullPage({ estimateM, api }) {
               label="Drones / failures"
               abbr="n / r"
               value={`${result.n} / ${result.r}`}
-              note="Drones in your data, and how many of them failed."
+              info="Drones in your data, and how many of them failed."
             />
           </dl>
 
+          <h3 className="chart-head">
+            Reliability curve
+            <InfoTip
+              topic="Reliability curve"
+              text="The share of drones still working at each age, in flight hours. The horizontal line is 90%, the vertical mark is your planned hours, and the dot is the 10% failure age (B10)."
+            />
+          </h3>
           <ReliabilityCurve
             c={result.c_hat}
             m={result.m}
             planHours={result.plan_hours}
             B10={result.B10}
           />
-          <p className="curve-caption">
-            Reliability curve: the share of drones still working at each age (flight hours). The
-            horizontal line is 90%; the vertical mark is your planned hours; the dot is the 10%
-            failure age (B10).
-          </p>
+          <p className="curve-caption">Line: 90% · mark: planned hours · dot: 10% failure age</p>
         </section>
       )}
     </>
@@ -449,44 +511,45 @@ function ImrPage({ api }) {
               label="Unusual missions"
               abbr="out of limits, I chart"
               value={result.individuals.n_out_of_control}
-              note="Missions whose hours fall outside the normal range. 0 means none."
+              info="Missions whose hours fall outside the normal range. 0 means none."
             />
             <Stat
               label="Unusual jumps between missions"
               abbr="out of limits, MR chart"
               value={result.moving_range.n_out_of_control}
-              note="Changes from one mission to the next that are bigger than normal."
+              info="Changes from one mission to the next that are bigger than normal."
             />
             <Stat
               label="Average mission length"
               abbr="x̄"
               value={fmt(result.x_bar)}
               unit="hours"
-              note="The typical number of hours per mission."
+              info="The typical number of hours per mission."
             />
             <Stat
               label="Average change between missions"
               abbr="mR̄, average moving range"
               value={fmt(result.mr_bar)}
               unit="hours"
-              note="How much mission length usually changes from one mission to the next."
+              info="How much mission length usually changes from one mission to the next."
             />
             <Stat
               label="Normal spread"
               abbr="σ̂, short-term standard deviation"
               value={fmt(result.sigma_short)}
               unit="hours"
-              note="How far mission lengths normally vary around the average."
+              info="How far mission lengths normally vary around the average."
             />
             <Stat
               label="Missions"
               abbr="n"
               value={result.n}
-              note="Number of missions you entered."
+              info="Number of missions you entered."
             />
           </dl>
           <ImrSpark
             title="Hours per mission (Individuals chart)"
+            info={`Each mission's hours, in order. Red points fall outside the upper or lower limit: something may have changed and is worth checking. Only points outside the limits are flagged; no other pattern rules are applied. Limits use the standard two-point constant E₂ ≈ ${fmt(result.E2, 3)}.`}
             points={result.individuals.points}
             cl={result.individuals.cl}
             ucl={result.individuals.ucl}
@@ -495,18 +558,14 @@ function ImrPage({ api }) {
           />
           <ImrSpark
             title="Change from the previous mission (Moving-range chart)"
+            info={`How much each mission's hours changed from the mission before. Red points are jumps above the upper limit, bigger than normal. The upper limit uses the standard constant D₄ = ${fmt(result.D4, 3)}; the lower limit is 0.`}
             points={result.moving_range.points}
             cl={result.moving_range.cl}
             ucl={result.moving_range.ucl}
             lcl={result.moving_range.lcl}
             valueKey="mr"
           />
-          <p className="curve-caption">
-            Red points are outside the upper or lower limit: something may have changed and is worth
-            checking. Only points outside the limits are flagged; no other pattern rules are
-            applied. Limits use the standard two-point constants (E₂ ≈ {fmt(result.E2, 3)}, D₄ ={' '}
-            {fmt(result.D4, 3)}).
-          </p>
+          <p className="curve-caption">Red points: outside the limits, worth checking.</p>
         </section>
       )}
     </>
