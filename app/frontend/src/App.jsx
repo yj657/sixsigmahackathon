@@ -2,6 +2,9 @@ import { useEffect, useId, useMemo, useRef, useState, startTransition } from 're
 import { API_URL, analyzeFleet, checkApi, runImr } from './api.js'
 import { appendHistory, clearHistory, loadHistory } from './history.js'
 import { IMR_SAMPLES, SAMPLES } from './samples.js'
+// Imported (not referenced by URL) so Vite bundles it with a hashed, relative path that
+// works under Connect's /content/<guid>/ prefix.
+import yijiaPhoto from './assets/yijia-jiang.jpg'
 
 /** Top-level site pages (separate screens). */
 const NAV = [
@@ -1206,7 +1209,8 @@ const CONTRIBUTORS = [
     id: 'yijia',
     name: 'Yijia Jiang',
     role: 'Data, demo walkthrough, documentation',
-    photo: null,
+    photo: yijiaPhoto,
+    alt: 'Yijia Jiang',
     initials: 'YJ',
   },
   {
@@ -1229,7 +1233,7 @@ function ContributorCard({ person }) {
           <img
             className="person-photo"
             src={person.photo}
-            alt={`${person.name}, team kskbl`}
+            alt={person.alt ?? `${person.name}, team kskbl`}
             width={280}
             height={280}
             onError={() => setPhotoFailed(true)}
