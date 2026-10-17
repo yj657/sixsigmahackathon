@@ -1294,3 +1294,243 @@ input[aria-invalid='true'] {
 .manual-note {
   position: relative;
 }
+
+/* ---- Help page: Quick Start flowchart, outcome cards, badges ---- */
+.help-icon {
+  flex: none;
+  color: var(--amber);
+}
+
+.quickstart {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--line));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--amber) 7%, var(--bg-elev)),
+    var(--bg-elev) 70%
+  );
+}
+
+.flow {
+  list-style: none;
+  margin: 0.25rem 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 1.6rem;
+}
+
+@media (min-width: 760px) {
+  .flow {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.4rem;
+  }
+}
+
+.flow-step {
+  position: relative;
+  padding: 0.8rem 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg) 55%, var(--bg-elev));
+}
+
+/* Arrow to the next card: down on narrow screens, right on wide ones. */
+.flow-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1.25rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-right: 2px solid var(--amber);
+  border-bottom: 2px solid var(--amber);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@media (min-width: 760px) {
+  .flow-step:not(:last-child)::after {
+    left: auto;
+    right: -1.05rem;
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%) rotate(-45deg);
+  }
+}
+
+.flow-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+/* Step tooltips open under the card, at least 16rem wide; the last two cards align them
+   to the right edge so they stay on screen. */
+.flow-step .info-tip {
+  min-width: min(16rem, 80vw);
+}
+
+@media (min-width: 760px) {
+  .flow-step:nth-child(n + 3) .info-tip {
+    left: auto;
+  }
+}
+
+/* Number, icon and info button on the first row; the title gets its own line. */
+.flow-head .info {
+  margin-left: auto;
+}
+
+.flow-head .flow-title {
+  order: 3;
+  flex-basis: 100%;
+}
+
+.flow-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--amber);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.flow-title {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.flow-action {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.flow-action strong {
+  color: var(--ink);
+}
+
+.quickstart-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.quickstart-foot .manual-note {
+  margin: 0;
+}
+
+.outcomes {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .outcomes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.outcome {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+
+.outcome.safe {
+  border-left-color: var(--safe);
+  background: color-mix(in srgb, var(--safe) 8%, transparent);
+}
+
+.outcome.safe .help-icon {
+  color: var(--safe);
+}
+
+.outcome.danger {
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.outcome.danger .help-icon {
+  color: var(--danger);
+}
+
+.manual-block .outcome-title {
+  margin: 0 0 0.2rem;
+  font-weight: 700;
+}
+
+.manual-block .outcome-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.outcome-rule {
+  position: relative;
+  font-size: 0.88rem;
+}
+
+.manual-block .outcome-note {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.chip-list {
+  position: relative; /* chip tooltips span the whole row, so they never run off-screen */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip-list li {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge.safe {
+  color: var(--safe);
+  background: color-mix(in srgb, var(--safe) 14%, transparent);
+}
+
+.badge.danger {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.badge.neutral {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}

@@ -964,6 +964,104 @@ const TIP_SHAPE =
 const TIP_ESTIMATE =
   'The numbers come from a statistical model fitted to the hours you entered. They help you decide when to review maintenance, but they can be wrong if the data are incomplete or the assumptions do not hold, and they never certify that a drone is safe to fly.'
 
+// Small line icons for the Help page (decorative: the text next to them carries the meaning).
+const HELP_ICONS = {
+  data: (
+    <>
+      <ellipse cx="12" cy="6" rx="7" ry="2.5" />
+      <path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6" />
+      <path d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  run: <path d="M8 5.5v13l10.5-6.5z" />,
+  results: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 15l3-3 2.5 2.5L17 10" />
+    </>
+  ),
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  alert: (
+    <>
+      <path d="M12 4l9 16H3z" />
+      <path d="M12 10v4.5M12 17.5v.01" />
+    </>
+  ),
+  shield: <path d="M12 3l7 3v5.5c0 4.4-3 7.9-7 9.5-4-1.6-7-5.1-7-9.5V6z" />,
+}
+
+function HelpIcon({ name }) {
+  return (
+    <svg
+      className="help-icon"
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {HELP_ICONS[name]}
+    </svg>
+  )
+}
+
+// Quick Start steps. Every label matches the live form (verified against WeibullPage).
+const QUICK_START = [
+  {
+    icon: 'data',
+    title: 'Choose data',
+    action: (
+      <>
+        Open <strong>Check → Should we service now?</strong> Click a sample or type each drone&apos;s
+        flight hours and a <code>1</code>/<code>0</code> for failed.
+      </>
+    ),
+    tip: 'One number per drone, in the same order in both boxes. 1 = failed, 0 = still flying or removed without failing. Still-flying drones count: they lasted at least that long. The form opens with the wearout_baseline sample already filled in.',
+  },
+  {
+    icon: 'clock',
+    title: 'Set flight hours',
+    action: (
+      <>
+        <strong>Drone age now</strong> (<code>0</code> = new) and <strong>planned flight hours
+        before next service</strong>.
+      </>
+    ),
+    tip: 'Drone age now (current_age) is the hours the drone you are checking has already flown. Planned flight hours (plan_hours) are the additional hours you plan to fly from now until the next service.',
+  },
+  {
+    icon: 'run',
+    title: 'Run analysis',
+    action: (
+      <>
+        Press <strong>Run maintenance check</strong>.
+      </>
+    ),
+    tip: 'Run stays greyed out while anything needs fixing; a “Please fix before running” list under the form says what. It is also greyed out if the calculator status says Offline.',
+  },
+  {
+    icon: 'results',
+    title: 'Review results',
+    action: (
+      <>
+        Read the <strong>banner</strong> first, then what it is based on.
+      </>
+    ),
+    tip: 'Under the banner: number of drones and recorded failures, drone age now, planned additional hours, and the model assumption. Then the next-interval chance (what the 90% rule uses) and lifetime numbers for a new drone.',
+  },
+]
+
 function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
   return (
     <article className="manual">
@@ -978,30 +1076,64 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
         </p>
       </header>
 
-      <section className="manual-block">
-        <h3>Quick start</h3>
-        <ol className="manual-steps">
-          <li>
-            Open <strong>Check</strong> → <strong>Should we service now?</strong>
-          </li>
-          <li>
-            Click a sample, such as <strong>wearout_baseline</strong>, or type your fleet&apos;s
-            numbers.
-          </li>
-          <li>
-            Set <strong>Drone age now</strong> (0 for a new drone) and the{' '}
-            <strong>planned flight hours before next service</strong>.
-          </li>
-          <li>
-            Press <strong>Run maintenance check</strong> and read the banner at the top of the
-            results.
-          </li>
+      <section className="manual-block quickstart" aria-labelledby="qs-title">
+        <h3 id="qs-title">Quick start</h3>
+        <ol className="flow">
+          {QUICK_START.map((step, i) => (
+            <li key={step.title} className="flow-step">
+              <div className="flow-head">
+                <span className="flow-num" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <HelpIcon name={step.icon} />
+                <span className="flow-title">{step.title}</span>
+                <InfoTip topic={step.title} text={step.tip} />
+              </div>
+              <p className="flow-action">{step.action}</p>
+            </li>
+          ))}
         </ol>
-        <button type="button" className="primary" onClick={() => onOpenCheck('fixed')}>
-          Open Check · Should we service now?
-        </button>
-        <p className="manual-note">
-          Calculator status right now: <strong>{apiReady ? 'Ready' : 'Offline'}</strong>.
+        <div className="quickstart-foot">
+          <button type="button" className="primary" onClick={() => onOpenCheck('fixed')}>
+            Start: Should we service now?
+          </button>
+          <span className="manual-note">
+            Calculator: <strong>{apiReady ? 'Ready' : 'Offline'}</strong>
+          </span>
+        </div>
+      </section>
+
+      <section className="manual-block" aria-labelledby="outcomes-title">
+        <h3 id="outcomes-title">What the banner can say</h3>
+        <div className="outcomes">
+          <div className="outcome safe">
+            <HelpIcon name="check" />
+            <div>
+              <p className="outcome-title">Meets the 90% threshold</p>
+              <p className="outcome-text">“Model-estimated reliability meets the 90% threshold.”</p>
+            </div>
+          </div>
+          <div className="outcome danger">
+            <HelpIcon name="alert" />
+            <div>
+              <p className="outcome-title">Below the 90% threshold</p>
+              <p className="outcome-text">
+                “Model-estimated reliability is below the 90% threshold; maintenance review is
+                recommended.”
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="outcome-rule">
+          The 90% applies to the <Term tip={TIP_CONDITIONAL}>chance to get through the next interval</Term>
+          : from the drone&apos;s age now to age now + planned hours. Exactly 90% meets it.
+        </p>
+        <p className="outcome-note">
+          <HelpIcon name="shield" />
+          <span>
+            Estimates <Term tip={TIP_ESTIMATE}>support maintenance decisions</Term>; they do not
+            guarantee flight safety.
+          </span>
         </p>
       </section>
 
@@ -1041,49 +1173,28 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             </tr>
           </tbody>
         </table>
-        <p>
-          If anything is wrong, a <strong>Please fix before running</strong> list appears under the
-          form and <strong>Run</strong> stays greyed out until it is fixed.
-        </p>
       </section>
 
       <section className="manual-block">
-        <h3>Reading the results</h3>
-        <ul className="manual-list">
+        <h3>Also in the results</h3>
+        <ul className="chip-list">
           <li>
-            <strong>The banner</strong> gives the answer in one sentence. Green: “Model-estimated
-            reliability meets the 90% threshold.” Red: “Model-estimated reliability is below the 90%
-            threshold; maintenance review is recommended.”
+            <Term tip="How many drones the result is based on, and how many of them failed. Few failures means a rougher estimate.">
+              Drones · recorded failures
+            </Term>
           </li>
           <li>
-            The rule is simple: the{' '}
-            <Term tip={TIP_CONDITIONAL}>chance to get through the next interval</Term> must be 90%
-            or more. The next interval runs from the drone&apos;s age now to age now + planned hours.
+            <Term tip={TIP_SHAPE}>Model assumption</Term>
           </li>
           <li>
-            Under the banner: how many <strong>drones</strong> and <strong>recorded failures</strong>{' '}
-            the answer is based on, the <strong>drone age now</strong> and the{' '}
-            <strong>planned additional hours</strong>.
+            <Term tip={TIP_LIFETIME}>Lifetime (from a new drone)</Term>
           </li>
           <li>
-            <strong>Model:</strong> one line saying what the model assumes about the{' '}
-            <Term tip={TIP_SHAPE}>wear-out shape</Term>.
-          </li>
-          <li>
-            <Term tip={TIP_LIFETIME}>Lifetime (from a new drone)</Term> numbers describe the fleet,
-            not the drone you are checking. The same plan is riskier for an older drone.
-          </li>
-          <li>
-            Every number has a small <strong>i</strong> icon: hover, tab to it, or tap it for a short
-            explanation. Close the results with <strong>Close</strong>, the dark background or
-            Escape.
+            <Term tip="Every number has a small i icon: hover, tab to it, or tap it for a short explanation. Close the results with Close, the dark background or Escape.">
+              Info icons
+            </Term>
           </li>
         </ul>
-        <p className="manual-note">
-          Reliability estimates <Term tip={TIP_ESTIMATE}>support maintenance decisions</Term> —
-          they do not guarantee flight safety. Always follow inspections, manufacturer limits and
-          your team&apos;s procedures.
-        </p>
       </section>
 
       <section className="manual-block">
@@ -1099,33 +1210,34 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
             <tr>
               <td>wearout_baseline</td>
               <td>
-                5 drones, 3 failures, age 0, plan 100 h → 78.95% →{' '}
-                <strong>below the 90% threshold</strong>
+                5 drones, 3 failures, age 0, plan 100 h → 78.95%{' '}
+                <span className="badge danger">Below 90%</span>
               </td>
             </tr>
             <tr>
               <td>baseline · plan 50 h</td>
               <td>
-                Same fleet, shorter plan → 94.26% → <strong>meets the 90% threshold</strong>
+                Same fleet, plan 50 h → 94.26% <span className="badge safe">Meets 90%</span>
               </td>
             </tr>
             <tr>
               <td>baseline · drone at 150 h</td>
               <td>
-                Same fleet and plan, but the drone has flown 150 h → 66.12% →{' '}
-                <strong>below the 90% threshold</strong>
+                Same fleet, plan 50 h, drone already at 150 h → 66.12%{' '}
+                <span className="badge danger">Below 90%</span>
               </td>
             </tr>
             <tr>
               <td>early_wearout</td>
               <td>
-                Parts wear out fast → 8.66% → <strong>below the 90% threshold</strong>
+                Parts wear out fast → 8.66% <span className="badge danger">Below 90%</span>
               </td>
             </tr>
             <tr>
               <td>edge_all_censored</td>
               <td>
-                No failures yet → a red <strong>Could not run</strong> box; no numbers are invented
+                No failures yet → <span className="badge neutral">Could not run</span> no numbers are
+                invented
               </td>
             </tr>
           </tbody>
