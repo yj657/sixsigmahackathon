@@ -1454,7 +1454,7 @@ const CONTRIBUTORS = [
     id: 'yang',
     name: 'Yang',
     role: '',
-    photo: null,
+    photo: './contributors/yang.jpg',
     initials: 'Y',
   },
 ]
