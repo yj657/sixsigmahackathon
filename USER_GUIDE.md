@@ -16,57 +16,63 @@ Open the live UI in any browser. No login or key is needed:
 
 **https://connect.systems-apps.com/content/a7bfcdd7-6564-45cb-b74e-09128cde8a93**
 
-In the page header, the API status should say **connected**. If it says **unreachable**, the
-analysis buttons are disabled; try again later.
+In the page header, **Calculation service (API)** should say **connected**. If it says
+**unreachable**, the run buttons are disabled; try again later.
 
 ## 3. Run an analysis
 
 1. **Choose a page** from the tabs:
-   - **Weibull m=2**: the main maintenance decision. Start here.
-   - **Free-m fit**: the same analysis, but the shape *m* is estimated from your data (see §6).
-   - **I-MR chart**: stability of mission hours (see §7).
+   - **Maintenance check (Weibull m=2)**: the main decision. Start here.
+   - **Wear-pattern check (Free-m fit)**: the same check, but the wear-out shape is estimated
+     from your data (see §7).
+   - **Mission-hours stability (I-MR chart)**: are mission lengths steady? (see §7).
 2. **Optional: load a sample.** Click a sample button to fill in the form:
    `wearout_baseline`, `baseline · plan 50 h`, `early_wearout` or `edge_all_censored`.
 3. **Enter your fleet**, one value per drone, in the same order in both boxes. Separate values
    with commas or spaces.
-   - **time_hours**: each drone's flight hours: at failure, or its hours today if still flying.
-     Every value must be a number above 0.
-   - **failed**: `1` if that drone failed, `0` if it is still flying or was removed without
-     failing. Enter only `0` or `1`.
-4. **Set plan_hours**: how many flight hours you want the fleet to cover before its next
-   service (default 100).
-5. Click **Run Weibull fit (m=2)** (or **Run free-m MLE** on the Free-m page).
+   - **Flight hours per drone (time_hours)**: hours at failure, or hours so far if the drone is
+     still flying. Every value must be a number above 0.
+   - **Did it fail? (failed)**: `1` if that drone failed, `0` if it is still flying or was removed
+     without failing. Enter only `0` or `1`.
+4. **Set Planned flight hours before next service (plan_hours)**: how many hours the fleet should
+   fly before it is serviced (default 100).
+5. Click **Run maintenance check (Weibull m=2)** (or **Run wear-pattern check (free-m fit)** on
+   the wear-pattern page).
 
-The result shows a coloured banner with the call, a row of numbers, and a reliability curve. If
-something is wrong with the input, a red message explains what to fix.
+The result shows a coloured banner with the call, a set of labelled results with a one-line
+explanation under each, and a reliability curve. If something is wrong with the input, a red
+message explains what to fix.
 
 ## 4. Reading the results
 
-| On screen | Plain meaning |
-|---|---|
-| **maintain now** | Ground and service before the next mission: too many drones are expected to fail within `plan_hours` |
-| **ok to fly** | At least 90% of drones are expected to get through `plan_hours` without failing |
-| **m** | The Weibull *shape*. 2 means "wear-out": the older a drone, the likelier it fails |
-| **ĉ (hours)** | Characteristic life: by this age about 63% of drones have failed |
-| **MTTF** | Mean time to failure, in flight hours: the average life of a drone |
-| **B10** | The age by which **10%** of drones are expected to fail. A safe service interval is below it |
-| **R(plan)** | Reliability: the chance a drone survives to `plan_hours` without failing (0 to 1), counted from 0 h |
-| **z(plan)** | Hazard: the failure rate per flight hour at `plan_hours`. Higher means riskier right now |
-| **n / r** | Number of drones you entered / how many of them failed |
-| **Reliability curve** | R(t), the share of drones still working at each age. The horizontal line is 0.9, the vertical mark is your `plan_hours`, and the dot is B10 |
+Each result is shown with a plain name, the technical name in brackets, and its units.
 
-**The rule:** the tool says `maintain now` when B10 ≤ `plan_hours` (equivalently, R(plan) is
-below 0.90). Otherwise it says `ok to fly`.
+| On screen | Units | Plain meaning |
+|---|---|---|
+| **maintain now** | — | Ground and service before the next mission: too many drones are expected to fail within your planned hours |
+| **ok to fly** | — | At least 90% of drones are expected to get through your planned hours without failing |
+| **Chance to complete the plan (reliability R)** | % | Share of drones expected to fly your planned hours without failing, counted from 0 h. Below 90% means service first. Very small values show as `< 0.01%` |
+| **10% failure age (B10 life)** | flight hours | By this age, 1 drone in 10 is expected to have failed. Service before it |
+| **Average life (MTTF, mean time to failure)** | flight hours | How long a drone lasts on average before it fails |
+| **Characteristic life (ĉ)** | flight hours | By this age, about 63% of drones are expected to have failed |
+| **Failure rate at planned hours (hazard z)** | per flight hour | How fast a drone that has reached your planned hours is failing. Higher is riskier |
+| **Wear-out shape, fixed (m)** | — | Set to 2 on the maintenance check: older drones are more likely to fail. Assumed, not measured |
+| **Drones / failures (n / r)** | count | Drones in your data, and how many of them failed |
+| **Reliability curve** | — | The share of drones still working at each age. The horizontal line is 90%, the vertical mark is your planned hours, and the dot is the 10% failure age (B10) |
 
-## 5. Worked examples (Weibull m=2 page)
+**The rule:** the tool says `maintain now` when the 10% failure age (B10) is at or below your
+planned hours (equivalently, the chance to complete the plan is below 90%). Otherwise it says
+`ok to fly`.
+
+## 5. Worked examples (maintenance check page)
 
 Load each sample and run it. These results were checked against the live API.
 
-| Sample | Fleet | plan_hours | ĉ | MTTF | B10 | R(plan) | Call |
+| Sample | Fleet | Planned hours | Characteristic life (ĉ) | Average life (MTTF) | 10% failure age (B10) | Chance to complete the plan (R) | Call |
 |---|---|---|---|---|---|---|---|
-| `wearout_baseline` | 5 drones: failed at 100, 120, 150 h; 2 still flying at 200 h | 100 | 205.670 | 182.270 | 66.759 | 0.7895 | **maintain now** |
-| `baseline · plan 50 h` | same fleet | 50 | 205.670 | 182.270 | 66.759 | 0.9426 | **ok to fly** |
-| `early_wearout` | 6 drones: failed at 40–55 h; 2 still flying at 60 h | 100 | 63.934 | 56.660 | 20.752 | 0.0866 | **maintain now** |
+| `wearout_baseline` | 5 drones: failed at 100, 120, 150 h; 2 still flying at 200 h | 100 | 205.670 h | 182.270 h | 66.759 h | 78.95% | **maintain now** |
+| `baseline · plan 50 h` | same fleet | 50 | 205.670 h | 182.270 h | 66.759 h | 94.26% | **ok to fly** |
+| `early_wearout` | 6 drones: failed at 40–55 h; 2 still flying at 60 h | 100 | 63.934 h | 56.660 h | 20.752 h | 8.66% | **maintain now** |
 
 How to read them:
 
@@ -85,24 +91,36 @@ sample), the tool **refuses to give numbers** and shows:
 > need at least one failure to estimate scale (r=0: all observations censored)
 
 With no failures there is no evidence about *when* drones fail, so the tool will not invent an
-answer. Keep logging until the first failure. The **Free-m fit** page needs at least **two**
-failures.
+answer. Keep logging until the first failure. The **Wear-pattern check (Free-m fit)** page needs
+at least **two** failures.
 
 ## 7. The other two pages
 
-- **Free-m fit** estimates the shape *m* from your data instead of assuming 2. Use it as a check
-  on the m = 2 assumption, not as the main decision. For example, on `early_wearout` it gives
-  m̂ ≈ 5.709 and B10 ≈ 39.019 h. With only a handful of failures, m̂ is uncertain.
-- **I-MR chart** takes an ordered list of **mission hours** (one value per mission) and plots the
-  individual values and their moving ranges with control limits. Red points are outside the
-  limits. The `imr_mission_hours` sample flags missions 7–9; `steady missions` flags none. Only
-  points beyond the limits are flagged; no other run rules are applied.
+- **Wear-pattern check (Free-m fit)** estimates the wear-out shape from your data instead of
+  assuming 2, shown as **Wear-out shape, estimated (m̂)**: above 1 means parts wear out with age,
+  about 1 means failures are random, below 1 means early failures. Use it as a check on the
+  m = 2 assumption, not as the main decision. For example, on `early_wearout` it gives m̂ ≈ 5.709,
+  a 10% failure age (B10) of 39.019 flight hours, and a chance to complete a 100-hour plan of
+  `< 0.01%`. With only a handful of failures, m̂ is uncertain.
+- **Mission-hours stability (I-MR chart)** takes **Hours flown per mission**, one value per
+  mission in the order flown. It shows:
+  - **Unusual missions** and **Unusual jumps between missions**: how many points fall outside the
+    normal limits;
+  - **Average mission length (x̄)**, **Average change between missions (mR̄)** and **Normal spread
+    (σ̂)**, all in hours;
+  - two charts, **Hours per mission (Individuals chart)** and **Change from the previous mission
+    (Moving-range chart)**, with upper and lower limits. Red points are outside the limits and
+    worth checking.
+
+  The `imr_mission_hours` sample flags missions 7–9 (3 unusual missions, 1 unusual jump);
+  `steady missions` flags none. Only points outside the limits are flagged; no other pattern
+  rules are applied.
 
 ## 8. Assumptions and limits
 
 - **The shape is fixed at m = 2 on the main page.** This assumes wear-out; it is not estimated
   from your data. If your parts fail at random or early in life, the call can be wrong.
-- **R(plan) is counted from 0 hours**, not from a drone's current age.
+- **The chance to complete the plan is counted from 0 hours**, not from a drone's current age.
 - **Every drone is assumed to fail independently**, with one failure mode in the data.
 - **Drones still flying must be included** (as `failed = 0`). Leaving them out makes the fleet look
   much worse than it is.

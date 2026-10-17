@@ -3,12 +3,48 @@ import { API_URL, analyzeFleet, checkApi, runImr } from './api.js'
 import { IMR_SAMPLES, SAMPLES } from './samples.js'
 
 const PAGES = [
-  { id: 'fixed', label: 'Weibull m=2', blurb: 'Primary maintain-now path' },
-  { id: 'free', label: 'Free-m fit', blurb: 'Estimate shape from data' },
-  { id: 'imr', label: 'I-MR chart', blurb: 'Mission-hour process' },
+  {
+    id: 'fixed',
+    label: 'Maintenance check (Weibull m=2)',
+    blurb: 'Main decision: service now, or ok to fly? Assumes parts wear out with age.',
+  },
+  {
+    id: 'free',
+    label: 'Wear-pattern check (Free-m fit)',
+    blurb: 'Same check, but the wear-out shape is estimated from your data instead of fixed.',
+  },
+  {
+    id: 'imr',
+    label: 'Mission-hours stability (I-MR chart)',
+    blurb: 'Are mission lengths steady, or did something change?',
+  },
 ]
 
 const fmt = (x, d = 3) => (Number.isFinite(x) ? Number(x).toFixed(d) : '—')
+
+// Display-only: the API returns reliability as a 0–1 fraction; show it as a percentage.
+function fmtPct(fraction, d = 2) {
+  if (!Number.isFinite(fraction)) return '—'
+  const pct = fraction * 100
+  if (pct > 0 && pct < 10 ** -d) return `< ${(10 ** -d).toFixed(d)}%`
+  return `${pct.toFixed(d)}%`
+}
+
+function Stat({ label, abbr, value, unit, note }) {
+  return (
+    <div>
+      <dt>
+        {label}
+        {abbr && <span className="stat-abbr"> ({abbr})</span>}
+      </dt>
+      <dd>
+        {value}
+        {unit && <span className="stat-unit"> {unit}</span>}
+      </dd>
+      {note && <dd className="stat-note">{note}</dd>}
+    </div>
+  )
+}
 
 function parseNumberList(text) {
   const parts = text
@@ -36,10 +72,15 @@ function ReliabilityCurve({ c, m = 2, planHours, B10 }) {
   const points = xs.map((t) => `${x(t)},${y(R(t))}`).join(' ')
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="curve" role="img" aria-label="Reliability curve R of t">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="curve"
+      role="img"
+      aria-label="Reliability curve: share of drones still working at each age in flight hours"
+    >
       <line className="grid" x1={pad.l} x2={W - pad.r} y1={y(0.9)} y2={y(0.9)} />
       <text className="axis" x={pad.l - 4} y={y(0.9) + 4} textAnchor="end">
-        0.9
+        90%
       </text>
       <polyline className="series" points={points} />
       <line className="mark" x1={x(planHours)} x2={x(planHours)} y1={pad.t} y2={H - pad.b} />
@@ -47,7 +88,7 @@ function ReliabilityCurve({ c, m = 2, planHours, B10 }) {
         plan {fmt(planHours, 0)} h
       </text>
       <circle className="pt" cx={x(B10)} cy={y(0.9)} r={5}>
-        <title>{`B10 ≈ ${fmt(B10)} h`}</title>
+        <title>{`10% failure age (B10) ≈ ${fmt(B10)} flight hours`}</title>
       </circle>
       <text className="axis" x={pad.l} y={H - 8}>
         0 h
@@ -87,19 +128,21 @@ function ImrSpark({ title, points, cl, ucl, lcl, valueKey }) {
             cy={y(p[valueKey])}
             r={4}
           >
-            <title>{`${p.index}: ${fmt(p[valueKey], 2)}${p.out_of_control ? ' OOC' : ''}`}</title>
+            <title>{`Mission ${p.index}: ${fmt(p[valueKey], 2)} h${
+              p.out_of_control ? ' — outside the limits' : ''
+            }`}</title>
           </circle>
         ))}
         <text className="axis" x={pad.l - 4} y={y(ucl) + 3} textAnchor="end">
-          UCL
+          Upper
         </text>
         <text className="axis" x={pad.l - 4} y={y(lcl) + 3} textAnchor="end">
-          LCL
+          Lower
         </text>
       </svg>
       <p className="curve-caption">
-        CL {fmt(cl)} · UCL {fmt(ucl)} · LCL {fmt(lcl)} · OOC{' '}
-        {points.filter((p) => p.out_of_control).length}
+        Center line (CL) {fmt(cl)} h · upper limit (UCL) {fmt(ucl)} h · lower limit (LCL){' '}
+        {fmt(lcl)} h · points outside the limits: {points.filter((p) => p.out_of_control).length}
       </p>
     </div>
   )
@@ -108,7 +151,7 @@ function ImrSpark({ title, points, cl, ucl, lcl, valueKey }) {
 function ApiBadge({ api }) {
   return (
     <p className={`api ${api.state}`} role="status">
-      API <code>{API_URL}</code>
+      Calculation service (API) <code>{API_URL}</code>
       <br />
       {api.state === 'checking' && 'checking…'}
       {api.state === 'ok' && 'connected'}
@@ -182,8 +225,11 @@ function WeibullPage({ estimateM, api }) {
       <form className="panel" onSubmit={onAnalyze}>
         <div className="fields">
           <label htmlFor="times">
-            time_hours
-            <span className="hint">comma-separated flight hours</span>
+            Flight hours per drone (time_hours)
+            <span className="hint">
+              One number per drone, separated by commas: hours at failure, or hours so far if it is
+              still flying.
+            </span>
           </label>
           <textarea
             id="times"
@@ -194,8 +240,10 @@ function WeibullPage({ estimateM, api }) {
           />
 
           <label htmlFor="failed">
-            failed
-            <span className="hint">1 = failed, 0 = still flying (censored)</span>
+            Did it fail? (failed)
+            <span className="hint">
+              Same order as above: 1 = failed, 0 = still flying or removed without failing.
+            </span>
           </label>
           <textarea
             id="failed"
@@ -206,8 +254,8 @@ function WeibullPage({ estimateM, api }) {
           />
 
           <label htmlFor="plan">
-            plan_hours
-            <span className="hint">next-mission horizon</span>
+            Planned flight hours before next service (plan_hours)
+            <span className="hint">How long the fleet should fly before it is serviced, in hours.</span>
           </label>
           <input
             id="plan"
@@ -221,7 +269,11 @@ function WeibullPage({ estimateM, api }) {
 
         <div className="actions">
           <button type="submit" className="primary" disabled={busy || api.state === 'down'}>
-            {busy ? 'Fitting…' : estimateM ? 'Run free-m MLE' : 'Run Weibull fit (m=2)'}
+            {busy
+              ? 'Calculating…'
+              : estimateM
+                ? 'Run wear-pattern check (free-m fit)'
+                : 'Run maintenance check (Weibull m=2)'}
           </button>
           <a className="ghost" href={`${API_URL}/docs`} target="_blank" rel="noreferrer">
             Open API docs
@@ -244,42 +296,62 @@ function WeibullPage({ estimateM, api }) {
                 ? 'Ground and service before the next mission.'
                 : 'Reliability for this plan horizon looks acceptable.'}
               {estimateM
-                ? ` Shape estimated from data (m̂ = ${fmt(result.m, 3)}).`
-                : ' Shape fixed at m = 2.'}
+                ? ` Wear-out shape estimated from your data (m̂ = ${fmt(result.m, 3)}).`
+                : ' Wear-out shape fixed at m = 2.'}
             </span>
           </p>
 
           <dl className="stats">
-            <div>
-              <dt>{estimateM ? 'm̂' : 'm (fixed)'}</dt>
-              <dd>{fmt(result.m, estimateM ? 3 : 0)}</dd>
-            </div>
-            <div>
-              <dt>ĉ (hours)</dt>
-              <dd>{fmt(result.c_hat)}</dd>
-            </div>
-            <div>
-              <dt>MTTF</dt>
-              <dd>{fmt(result.mttf)}</dd>
-            </div>
-            <div>
-              <dt>R(plan)</dt>
-              <dd>{fmt(result.R_plan, 4)}</dd>
-            </div>
-            <div>
-              <dt>z(plan)</dt>
-              <dd>{fmt(result.z_plan, 5)}</dd>
-            </div>
-            <div>
-              <dt>B10</dt>
-              <dd>{fmt(result.B10)}</dd>
-            </div>
-            <div>
-              <dt>n / r</dt>
-              <dd>
-                {result.n} / {result.r}
-              </dd>
-            </div>
+            <Stat
+              label="Chance to complete the plan"
+              abbr="reliability R"
+              value={fmtPct(result.R_plan)}
+              note={`Share of drones expected to fly ${fmt(result.plan_hours, 0)} hours without failing. Below 90% means service first.`}
+            />
+            <Stat
+              label="10% failure age"
+              abbr="B10 life"
+              value={fmt(result.B10)}
+              unit="flight hours"
+              note="By this age, 1 drone in 10 is expected to have failed. Service before it."
+            />
+            <Stat
+              label="Average life"
+              abbr="MTTF, mean time to failure"
+              value={fmt(result.mttf)}
+              unit="flight hours"
+              note="How long a drone lasts on average before it fails."
+            />
+            <Stat
+              label="Characteristic life"
+              abbr="ĉ"
+              value={fmt(result.c_hat)}
+              unit="flight hours"
+              note="By this age, about 63% of drones are expected to have failed."
+            />
+            <Stat
+              label="Failure rate at planned hours"
+              abbr="hazard z"
+              value={fmt(result.z_plan, 5)}
+              unit="per flight hour"
+              note={`How fast a drone that has reached ${fmt(result.plan_hours, 0)} hours is failing. Higher is riskier.`}
+            />
+            <Stat
+              label={estimateM ? 'Wear-out shape, estimated' : 'Wear-out shape, fixed'}
+              abbr={estimateM ? 'm̂' : 'm'}
+              value={fmt(result.m, estimateM ? 3 : 0)}
+              note={
+                estimateM
+                  ? 'Above 1: parts wear out with age. About 1: failures are random. Below 1: early failures.'
+                  : 'Assumed, not measured: older drones are more likely to fail.'
+              }
+            />
+            <Stat
+              label="Drones / failures"
+              abbr="n / r"
+              value={`${result.n} / ${result.r}`}
+              note="Drones in your data, and how many of them failed."
+            />
           </dl>
 
           <ReliabilityCurve
@@ -289,7 +361,9 @@ function WeibullPage({ estimateM, api }) {
             B10={result.B10}
           />
           <p className="curve-caption">
-            Reliability R(t). Vertical mark = plan horizon; dot ≈ B10 (10% failed).
+            Reliability curve: the share of drones still working at each age (flight hours). The
+            horizontal line is 90%; the vertical mark is your planned hours; the dot is the 10%
+            failure age (B10).
           </p>
         </section>
       )}
@@ -342,8 +416,10 @@ function ImrPage({ api }) {
       <form className="panel" onSubmit={onRun}>
         <div className="fields">
           <label htmlFor="values">
-            mission hours
-            <span className="hint">ordered series, one value per mission</span>
+            Hours flown per mission
+            <span className="hint">
+              One number per mission, in the order the missions were flown, separated by commas.
+            </span>
           </label>
           <textarea
             id="values"
@@ -355,7 +431,7 @@ function ImrPage({ api }) {
         </div>
         <div className="actions">
           <button type="submit" className="primary" disabled={busy || api.state === 'down'}>
-            {busy ? 'Computing…' : 'Run I-MR chart'}
+            {busy ? 'Calculating…' : 'Run stability check (I-MR chart)'}
           </button>
         </div>
       </form>
@@ -369,33 +445,48 @@ function ImrPage({ api }) {
       {result && (
         <section className="result" aria-live="polite">
           <dl className="stats">
-            <div>
-              <dt>x̄</dt>
-              <dd>{fmt(result.x_bar)}</dd>
-            </div>
-            <div>
-              <dt>mR̄</dt>
-              <dd>{fmt(result.mr_bar)}</dd>
-            </div>
-            <div>
-              <dt>σ̂ short</dt>
-              <dd>{fmt(result.sigma_short)}</dd>
-            </div>
-            <div>
-              <dt>I OOC</dt>
-              <dd>{result.individuals.n_out_of_control}</dd>
-            </div>
-            <div>
-              <dt>MR OOC</dt>
-              <dd>{result.moving_range.n_out_of_control}</dd>
-            </div>
-            <div>
-              <dt>n</dt>
-              <dd>{result.n}</dd>
-            </div>
+            <Stat
+              label="Unusual missions"
+              abbr="out of limits, I chart"
+              value={result.individuals.n_out_of_control}
+              note="Missions whose hours fall outside the normal range. 0 means none."
+            />
+            <Stat
+              label="Unusual jumps between missions"
+              abbr="out of limits, MR chart"
+              value={result.moving_range.n_out_of_control}
+              note="Changes from one mission to the next that are bigger than normal."
+            />
+            <Stat
+              label="Average mission length"
+              abbr="x̄"
+              value={fmt(result.x_bar)}
+              unit="hours"
+              note="The typical number of hours per mission."
+            />
+            <Stat
+              label="Average change between missions"
+              abbr="mR̄, average moving range"
+              value={fmt(result.mr_bar)}
+              unit="hours"
+              note="How much mission length usually changes from one mission to the next."
+            />
+            <Stat
+              label="Normal spread"
+              abbr="σ̂, short-term standard deviation"
+              value={fmt(result.sigma_short)}
+              unit="hours"
+              note="How far mission lengths normally vary around the average."
+            />
+            <Stat
+              label="Missions"
+              abbr="n"
+              value={result.n}
+              note="Number of missions you entered."
+            />
           </dl>
           <ImrSpark
-            title="Individuals"
+            title="Hours per mission (Individuals chart)"
             points={result.individuals.points}
             cl={result.individuals.cl}
             ucl={result.individuals.ucl}
@@ -403,7 +494,7 @@ function ImrPage({ api }) {
             valueKey="value"
           />
           <ImrSpark
-            title="Moving range"
+            title="Change from the previous mission (Moving-range chart)"
             points={result.moving_range.points}
             cl={result.moving_range.cl}
             ucl={result.moving_range.ucl}
@@ -411,8 +502,10 @@ function ImrPage({ api }) {
             valueKey="mr"
           />
           <p className="curve-caption">
-            Limits use span-2 constants (E₂≈{fmt(result.E2, 3)}, D₄={fmt(result.D4, 3)}). Red
-            points are beyond the limits only — no Western Electric run rules.
+            Red points are outside the upper or lower limit: something may have changed and is worth
+            checking. Only points outside the limits are flagged; no other pattern rules are
+            applied. Limits use the standard two-point constants (E₂ ≈ {fmt(result.E2, 3)}, D₄ ={' '}
+            {fmt(result.D4, 3)}).
           </p>
         </section>
       )}
@@ -439,8 +532,9 @@ export default function App() {
           <p className="brand">kskbl</p>
           <h1>Fleet reliability desk</h1>
           <p className="lede">
-            Log flight hours and failures (including drones still flying). Primary path: Weibull
-            wear-out (<em>m</em> = 2). Secondary: free-<em>m</em> MLE and I-MR on mission hours.
+            Enter each drone's flight hours and whether it failed (including drones still flying)
+            to see whether the fleet should be serviced before its next block of flying. Start
+            with the maintenance check; the other two pages are extra checks.
           </p>
         </div>
         <ApiBadge api={api} />
@@ -468,8 +562,9 @@ export default function App() {
       {page === 'imr' && <ImrPage api={api} />}
 
       <footer>
-        Statistics in <code>app/qc.py</code> · primary shape <em>m</em> = 2 · free-<em>m</em> +
-        I-MR in H-09 · walkthrough in <code>demo/README.md</code>
+        Calculations in <code>app/qc.py</code> · the maintenance check assumes wear-out shape{' '}
+        <em>m</em> = 2 · how to use it: <code>USER_GUIDE.md</code> · walkthrough:{' '}
+        <code>demo/README.md</code>
       </footer>
     </div>
   )

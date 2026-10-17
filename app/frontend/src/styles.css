@@ -426,6 +426,33 @@ input:focus {
   font-weight: 500;
 }
 
+.stats dt {
+  font-size: 0.85rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stats .stat-abbr {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.stats .stat-unit {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.stats dd.stat-note {
+  margin-top: 0.3rem;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .curve {
   width: 100%;
   height: auto;
