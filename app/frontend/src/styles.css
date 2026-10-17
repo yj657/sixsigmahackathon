@@ -1286,3 +1286,11 @@ input[aria-invalid='true'] {
   margin-bottom: 1rem;
   color: var(--muted);
 }
+
+/* Help page: tooltips open under the list item or table cell they belong to. */
+.manual-steps li,
+.manual-list li,
+.manual-table td,
+.manual-note {
+  position: relative;
+}

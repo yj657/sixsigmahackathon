@@ -943,13 +943,34 @@ function ImrPage({ api }) {
   )
 }
 
+// A word in the Help text with its plain-English definition behind an info icon.
+function Term({ children, tip }) {
+  return (
+    <>
+      <strong>{children}</strong>
+      <InfoTip topic={typeof children === 'string' ? children : 'this term'} text={tip} />
+    </>
+  )
+}
+
+const TIP_CONDITIONAL =
+  'The chance that this drone, having already flown its current age without failing, also gets through the planned additional hours. This is the number the 90% threshold is checked against.'
+const TIP_LIFETIME =
+  'Numbers for a brand-new drone from this fleet, counted from 0 flight hours: 10% failure age (B10), average life (MTTF) and characteristic life. They do not change with the drone you are checking.'
+const TIP_STILL_FLYING =
+  'A drone that has not failed still tells you it lasted at least that long. The model uses that, so leaving these drones out would make the fleet look worse than it is.'
+const TIP_SHAPE =
+  'How the failure risk changes with age. The main check assumes it rises with age (shape fixed at 2). The wear-pattern check estimates it from your data instead.'
+const TIP_ESTIMATE =
+  'The numbers come from a statistical model fitted to the hours you entered. They help you decide when to review maintenance, but they can be wrong if the data are incomplete or the assumptions do not hold, and they never certify that a drone is safe to fly.'
+
 function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
   return (
     <article className="manual">
       <header className="page-hero">
         <h1>Help · User manual</h1>
         <p className="lede">
-          Step-by-step guide for fleet maintenance technicians. For HTTP endpoints, use the{' '}
+          How to use the desk, in plain English. Developers: see the{' '}
           <button type="button" className="footer-link" onClick={onOpenApi}>
             API docs
           </button>{' '}
@@ -958,42 +979,30 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
       </header>
 
       <section className="manual-block">
-        <h3>Who this is for</h3>
-        <p>
-          You are a <strong>fleet maintenance technician</strong> at a drone delivery startup. After
-          logging flight hours — including drones still in the air — you need a clear call before
-          the next missions: does model-estimated reliability meet the{' '}
-          <strong>90% threshold</strong>, or is a <strong>maintenance review</strong> recommended?
-          The answer is a statistical estimate, not a guarantee of flight safety.
-        </p>
-        <p className="manual-note">
-          Calculator status right now: <strong>{apiReady ? 'Ready' : 'Offline'}</strong>.
-        </p>
-      </section>
-
-      <section className="manual-block">
-        <h3>Quick start (about 1 minute)</h3>
+        <h3>Quick start</h3>
         <ol className="manual-steps">
           <li>
-            Open the top menu <strong>Check</strong>, then the tool <strong>Should we service
-            now?</strong> (Start here).
+            Open <strong>Check</strong> → <strong>Should we service now?</strong>
           </li>
           <li>
-            Click the sample <strong>wearout_baseline</strong> — it fills the form for you.
+            Click a sample, such as <strong>wearout_baseline</strong>, or type your fleet&apos;s
+            numbers.
           </li>
           <li>
-            Press <strong>Run</strong>. A results window pops up.
+            Set <strong>Drone age now</strong> (0 for a new drone) and the{' '}
+            <strong>planned flight hours before next service</strong>.
           </li>
           <li>
-            Read the banner: for that sample you should see{' '}
-            <strong>below the 90% threshold; maintenance review is recommended</strong>, based on 5
-            drones and 3 recorded failures, with characteristic life ≈ <strong>205.7</strong>{' '}
-            flight hours.
+            Press <strong>Run maintenance check</strong> and read the banner at the top of the
+            results.
           </li>
         </ol>
         <button type="button" className="primary" onClick={() => onOpenCheck('fixed')}>
           Open Check · Should we service now?
         </button>
+        <p className="manual-note">
+          Calculator status right now: <strong>{apiReady ? 'Ready' : 'Offline'}</strong>.
+        </p>
       </section>
 
       <section className="manual-block">
@@ -1002,74 +1011,79 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
           <thead>
             <tr>
               <th>Field</th>
-              <th>What it means on the shop floor</th>
+              <th>What to enter</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>Flight hours per drone</td>
               <td>
-                One number per airframe, comma-separated. Hours at failure, or hours so far if still
-                flying. Must be &gt; 0.
+                One number per drone, commas between. The hours when it failed, or its hours so far
+                if it is <Term tip={TIP_STILL_FLYING}>still flying</Term>. Must be above 0.
               </td>
             </tr>
             <tr>
               <td>Did it fail?</td>
               <td>
-                Same order: <code>1</code> = failed / grounded as failed, <code>0</code> = still
-                flying or removed without failing. Only 0 or 1.
+                Same order as the hours: <code>1</code> = failed, <code>0</code> = still flying or
+                removed without failing.
               </td>
             </tr>
             <tr>
-              <td>Planned flight hours</td>
+              <td>Drone age now</td>
               <td>
-                Additional flight hours planned until the next service (default 100). Shorter
-                plans are more likely to meet the 90% threshold.
+                Hours the drone you are checking has already flown. <code>0</code> for a new drone.
               </td>
+            </tr>
+            <tr>
+              <td>Planned flight hours before next service</td>
+              <td>The extra hours you plan to fly from now until the next service.</td>
             </tr>
           </tbody>
         </table>
         <p>
-          <strong>Do not drop still-flying drones.</strong> They count as “survived at least this
-          long.” Leaving them out makes the fleet look worse than it is.
+          If anything is wrong, a <strong>Please fix before running</strong> list appears under the
+          form and <strong>Run</strong> stays greyed out until it is fixed.
         </p>
       </section>
 
       <section className="manual-block">
-        <h3>How to read the popup</h3>
+        <h3>Reading the results</h3>
         <ul className="manual-list">
           <li>
-            <strong>One rule, set by the server:</strong> the chance to get through the next
-            interval (from the drone's current age to current age + planned hours) must be at least
-            90%.
+            <strong>The banner</strong> gives the answer in one sentence. Green: “Model-estimated
+            reliability meets the 90% threshold.” Red: “Model-estimated reliability is below the 90%
+            threshold; maintenance review is recommended.”
           </li>
           <li>
-            The banner shows one of two sentences: “Model-estimated reliability meets the 90%
-            threshold.” or “Model-estimated reliability is below the 90% threshold; maintenance
-            review is recommended.”
+            The rule is simple: the{' '}
+            <Term tip={TIP_CONDITIONAL}>chance to get through the next interval</Term> must be 90%
+            or more. The next interval runs from the drone&apos;s age now to age now + planned hours.
           </li>
           <li>
-            Under it: how many drones and recorded failures the result is based on, the drone's age
-            now, the planned additional hours, and the model's assumption (hover the{' '}
-            <strong>i</strong> for details). Results are estimates, not a guarantee of flight
-            safety.
+            Under the banner: how many <strong>drones</strong> and <strong>recorded failures</strong>{' '}
+            the answer is based on, the <strong>drone age now</strong> and the{' '}
+            <strong>planned additional hours</strong>.
           </li>
           <li>
-            <strong>Drone age now</strong> — hours already flown. Leave it at 0 for a new drone; an
-            older drone under wear-out has a lower chance of getting through the same plan.
+            <strong>Model:</strong> one line saying what the model assumes about the{' '}
+            <Term tip={TIP_SHAPE}>wear-out shape</Term>.
           </li>
           <li>
-            <strong>Fleet lifetime</strong> numbers (10% failure age B10, average life MTTF,
-            characteristic life ĉ) are counted from new and do not change with age.
+            <Term tip={TIP_LIFETIME}>Lifetime (from a new drone)</Term> numbers describe the fleet,
+            not the drone you are checking. The same plan is riskier for an older drone.
           </li>
           <li>
-            Hover or tap the small <strong>i</strong> icons for short definitions of each number.
-          </li>
-          <li>
-            Close the window with <strong>Close</strong>, the dark background, or Escape. Open the{' '}
-            <strong>History</strong> page anytime to review past runs.
+            Every number has a small <strong>i</strong> icon: hover, tab to it, or tap it for a short
+            explanation. Close the results with <strong>Close</strong>, the dark background or
+            Escape.
           </li>
         </ul>
+        <p className="manual-note">
+          Reliability estimates <Term tip={TIP_ESTIMATE}>support maintenance decisions</Term> —
+          they do not guarantee flight safety. Always follow inspections, manufacturer limits and
+          your team&apos;s procedures.
+        </p>
       </section>
 
       <section className="manual-block">
@@ -1083,27 +1097,35 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
           </thead>
           <tbody>
             <tr>
-              <td>wearout_baseline · plan 100</td>
+              <td>wearout_baseline</td>
               <td>
-                ĉ ≈ 205.7 h → <strong>below the 90% threshold</strong>
+                5 drones, 3 failures, age 0, plan 100 h → 78.95% →{' '}
+                <strong>below the 90% threshold</strong>
               </td>
             </tr>
             <tr>
               <td>baseline · plan 50 h</td>
               <td>
-                Same fleet, shorter plan → <strong>meets the 90% threshold</strong>
+                Same fleet, shorter plan → 94.26% → <strong>meets the 90% threshold</strong>
+              </td>
+            </tr>
+            <tr>
+              <td>baseline · drone at 150 h</td>
+              <td>
+                Same fleet and plan, but the drone has flown 150 h → 66.12% →{' '}
+                <strong>below the 90% threshold</strong>
               </td>
             </tr>
             <tr>
               <td>early_wearout</td>
               <td>
-                Short lives → <strong>below the 90% threshold</strong> (harsh wear)
+                Parts wear out fast → 8.66% → <strong>below the 90% threshold</strong>
               </td>
             </tr>
             <tr>
               <td>edge_all_censored</td>
               <td>
-                No failures yet → red error, <em>no</em> invented numbers
+                No failures yet → a red <strong>Could not run</strong> box; no numbers are invented
               </td>
             </tr>
           </tbody>
@@ -1122,12 +1144,14 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
         </div>
         <ul className="manual-list">
           <li>
-            <strong>Wear-out shape</strong> — estimates how steeply risk rises with age (needs at
-            least two failures). Use as a second opinion; the main call still starts with m = 2.
+            <strong>How sharp is the wear-out?</strong> Same form and banner, but it estimates the{' '}
+            <Term tip={TIP_SHAPE}>wear-out shape</Term> from your data instead of assuming it.
+            Needs at least two failures. Use it as a second opinion.
           </li>
           <li>
-            <strong>Mission hours</strong> — enter consecutive mission lengths. Red points on the
-            charts are outside normal limits (something may have changed).
+            <strong>Are mission hours steady?</strong> Enter mission lengths in the order flown. Red
+            points mean a mission (or the jump from the one before) was outside the normal range and
+            is worth checking. It does not predict failures.
           </li>
         </ul>
       </section>
@@ -1136,16 +1160,23 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
         <h3>If something looks wrong</h3>
         <ul className="manual-list">
           <li>
-            Calculator status <strong>Offline</strong> — Run is disabled; wait or ask a teammate to
-            start the API.
+            <strong>Calculator status: Offline</strong> — Run is greyed out. Ask your team to start
+            the calculator (API).
           </li>
           <li>
-            Red error under the form — fix the message (blank cells, failed not 0/1, mismatched
-            list lengths, zero failures).
+            <strong>Please fix before running</strong> — correct each item in the list (for example
+            a missing value, a “failed” that is not 0 or 1, or lists of different lengths).
           </li>
           <li>
-            Popup blocked? Results open as an in-page window, not a browser tab — allow the dark
-            overlay; no popup-blocker setting needed.
+            <strong>Could not run</strong> (red box above the form) — the calculator explains why,
+            such as “need at least one failure”. If it says “These data cannot be calculated right
+            now. Please check the data.”, the numbers are valid but the model cannot give a
+            trustworthy answer (for example, every failure at exactly the same hour on the
+            wear-out check).
+          </li>
+          <li>
+            <strong>History</strong> keeps your past runs in this browser only; use{' '}
+            <strong>Clear history</strong> to remove them.
           </li>
         </ul>
       </section>
