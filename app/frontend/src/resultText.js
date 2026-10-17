@@ -22,8 +22,16 @@ export function meetsThreshold(result) {
   return result?.call === 'ok to fly'
 }
 
-/** The banner sentence: always one of the two threshold sentences, never "ok to fly". */
+/** Short banner call — the eye-catching line at the top of the results. */
 export function decisionHeadline(result) {
+  return meetsThreshold(result) ? 'ok to fly' : 'maintenance needed'
+}
+
+/**
+ * Longer explanation under the banner (backend decision_message when present;
+ * otherwise the same two threshold sentences for older saved results).
+ */
+export function decisionDetail(result) {
   if (typeof result?.decision_message === 'string' && result.decision_message) {
     return result.decision_message
   }
@@ -34,7 +42,7 @@ export function decisionHeadline(result) {
 export function historyCallLabel(entry) {
   if (entry?.kind === 'imr') return entry.call || '—'
   if (!entry?.call && typeof entry?.detail?.result?.meets_threshold !== 'boolean') return '—'
-  return meetsThreshold(entry.detail?.result ?? entry) ? 'Meets 90% threshold' : 'Below 90% threshold'
+  return decisionHeadline(entry.detail?.result ?? entry)
 }
 
 /** True if a saved History entry should be highlighted as needing attention. */

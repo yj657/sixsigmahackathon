@@ -6,6 +6,7 @@ import {
   IMR_ASSUMPTION,
   NOT_A_GUARANTEE,
   NOT_A_GUARANTEE_DETAIL,
+  decisionDetail,
   decisionHeadline,
   historyCallLabel,
   historyNeedsAttention,
@@ -368,8 +369,8 @@ function NotAGuarantee() {
   )
 }
 
-// One Weibull result view for the Check page and the History detail. The decision sentence
-// comes from the backend (decision_message); the frontend never re-applies the rule.
+// One Weibull result view for the Check page and the History detail. Short call on top;
+// longer threshold wording (from the backend when present) sits underneath.
 function WeibullResultView({ result, estimateM }) {
   const age = Number.isFinite(result.current_age) ? result.current_age : 0
   const end = Number.isFinite(result.end_age) ? result.end_age : age + result.plan_hours
@@ -379,6 +380,7 @@ function WeibullResultView({ result, estimateM }) {
     <section className="result" aria-live="polite">
       <p className={meetsThreshold(result) ? 'call safe' : 'call danger'}>
         <strong>{decisionHeadline(result)}</strong>
+        <span>{decisionDetail(result)}</span>
       </p>
       <BasisRow items={weibullBasis(result)} />
       <AssumptionLine
@@ -1151,17 +1153,20 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
           <div className="outcome safe">
             <HelpIcon name="check" />
             <div>
-              <p className="outcome-title">Meets the 90% threshold</p>
-              <p className="outcome-text">“Model-estimated reliability meets the 90% threshold.”</p>
+              <p className="outcome-title">ok to fly</p>
+              <p className="outcome-text">
+                Banner says <strong>ok to fly</strong>. Under it: “Model-estimated reliability meets
+                the 90% threshold.”
+              </p>
             </div>
           </div>
           <div className="outcome danger">
             <HelpIcon name="alert" />
             <div>
-              <p className="outcome-title">Below the 90% threshold</p>
+              <p className="outcome-title">maintenance needed</p>
               <p className="outcome-text">
-                “Model-estimated reliability is below the 90% threshold; maintenance review is
-                recommended.”
+                Banner says <strong>maintenance needed</strong>. Under it: “Model-estimated
+                reliability is below the 90% threshold; maintenance review is recommended.”
               </p>
             </div>
           </div>
@@ -1424,9 +1429,10 @@ function ApiDocsPage() {
   -H "Content-Type: application/json" \\
   -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0],"plan_hours":100,"current_age":0}'`}</pre>
         <p className="manual-note">
-          Expect c_hat ≈ 205.670, R_future ≈ 0.7895, n = 5, r = 3 and the below-90%
-          decision_message. (The API also returns call &quot;maintain now&quot; / &quot;ok to
-          fly&quot; for older clients; the desk shows only decision_message.)
+          Expect c_hat ≈ 205.670, R_future ≈ 0.7895, n = 5, r = 3. The desk shows a short
+          banner (<strong>ok to fly</strong> / <strong>maintenance needed</strong>) and puts
+          decision_message underneath. The API still returns call &quot;maintain now&quot; /
+          &quot;ok to fly&quot; for older clients.
         </p>
       </section>
     </article>

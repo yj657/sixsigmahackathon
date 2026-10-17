@@ -4,6 +4,7 @@ import {
   MSG_BELOW,
   MSG_MEETS,
   NOT_A_GUARANTEE,
+  decisionDetail,
   decisionHeadline,
   hazardPattern,
   historyCallLabel,
@@ -36,27 +37,26 @@ const below = {
 }
 
 describe('decision messages', () => {
-  it('shows the backend sentence, never "ok to fly"', () => {
-    expect(decisionHeadline(meets)).toBe(
-      'Model-estimated reliability meets the 90% threshold.',
-    )
-    expect(decisionHeadline(below)).toBe(
-      'Model-estimated reliability is below the 90% threshold; maintenance review is recommended.',
-    )
-    expect(decisionHeadline(meets)).not.toMatch(/ok to fly/i)
+  it('puts a short call in the banner and the long reason underneath', () => {
+    expect(decisionHeadline(meets)).toBe('ok to fly')
+    expect(decisionHeadline(below)).toBe('maintenance needed')
+    expect(decisionDetail(meets)).toBe(MSG_MEETS)
+    expect(decisionDetail(below)).toBe(MSG_BELOW)
   })
 
   it('words older saved results (no decision_message) with the same 90% rule', () => {
-    expect(decisionHeadline({ call: 'ok to fly' })).toBe(MSG_MEETS)
-    expect(decisionHeadline({ call: 'maintain now' })).toBe(MSG_BELOW)
+    expect(decisionHeadline({ call: 'ok to fly' })).toBe('ok to fly')
+    expect(decisionHeadline({ call: 'maintain now' })).toBe('maintenance needed')
+    expect(decisionDetail({ call: 'ok to fly' })).toBe(MSG_MEETS)
+    expect(decisionDetail({ call: 'maintain now' })).toBe(MSG_BELOW)
   })
 
-  it('labels History rows by the threshold, and keeps I-MR labels', () => {
+  it('labels History rows with the short call, and keeps I-MR labels', () => {
     expect(historyCallLabel({ kind: 'weibull-m2', call: 'ok to fly', detail: { result: meets } })).toBe(
-      'Meets 90% threshold',
+      'ok to fly',
     )
     expect(historyCallLabel({ kind: 'free-m', call: 'maintain now', detail: { result: below } })).toBe(
-      'Below 90% threshold',
+      'maintenance needed',
     )
     expect(historyCallLabel({ kind: 'imr', call: 'shift flagged' })).toBe('shift flagged')
     expect(historyNeedsAttention({ kind: 'weibull-m2', call: 'maintain now', detail: { result: below } })).toBe(true)
