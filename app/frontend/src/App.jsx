@@ -1742,13 +1742,11 @@ function HistoryPage() {
 }
 
 function CheckPage({ api, check, setCheck, onOpenHelp }) {
-  const active = CHECKS.find((c) => c.id === check) || CHECKS[0]
-
   return (
     <>
       <header className="top top-compact">
         <div className="hero">
-          <h1>Does the next interval meet the 90% reliability threshold?</h1>
+          <h1>Service before the next mission — or ok to fly?</h1>
           <p className="lede lede-compact">
             Enter hours and failures, then Run.{' '}
             <button type="button" className="footer-link" onClick={onOpenHelp}>
@@ -1761,23 +1759,24 @@ function CheckPage({ api, check, setCheck, onOpenHelp }) {
 
       <nav className="tabs" aria-label="Which check to run">
         {CHECKS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={check === c.id ? 'tab active' : 'tab'}
-            onClick={() => setCheck(c.id)}
-            aria-current={check === c.id ? 'page' : undefined}
-          >
-            <span className="tab-short">{c.short}</span>
-            <span className="tab-label">{c.label}</span>
-          </button>
+          <div key={c.id} className={check === c.id ? 'tab-slot active' : 'tab-slot'}>
+            <button
+              type="button"
+              className={check === c.id ? 'tab active' : 'tab'}
+              onClick={() => setCheck(c.id)}
+              aria-current={check === c.id ? 'page' : undefined}
+            >
+              <span className="tab-short">{c.short}</span>
+              <span className="tab-label">{c.label}</span>
+            </button>
+            {check === c.id && (
+              <span className="tab-info title-with-info">
+                <InfoTip topic={c.label} text={c.blurb} />
+              </span>
+            )}
+          </div>
         ))}
       </nav>
-
-      <h2 className="page-title title-with-info">
-        {active.label}
-        <InfoTip topic={active.label} text={active.blurb} />
-      </h2>
 
       {check === 'fixed' && <WeibullPage estimateM={false} api={api} />}
       {check === 'free' && <WeibullPage estimateM={true} api={api} />}

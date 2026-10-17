@@ -709,6 +709,22 @@ footer a {
   color: var(--focus);
 }
 
+.tab-slot {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.tab-slot .tab {
+  flex: 1;
+}
+
+.tab-info {
+  margin-top: 0.55rem;
+  flex-shrink: 0;
+}
+
 .tab {
   text-align: left;
   padding: 0.75rem 0.9rem;
