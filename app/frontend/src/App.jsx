@@ -324,7 +324,7 @@ function ReliabilityCurve({ c, m = 2, currentAge = 0, endAge, B10 }) {
       </text>
       <circle className="pt" cx={x(B10)} cy={y(0.9)} r={5}>
         <title>{`10% failure age (B10) ≈ ${fmt(B10)} flight hours`}</title>
-      </circle>
+        </circle>
       <text className="axis" x={pad.l} y={H - 8}>
         0 h
       </text>
@@ -520,7 +520,7 @@ function ImrSpark({ title, info, points, cl, ucl, lcl, valueKey }) {
         <text className="axis" x={pad.l - 4} y={y(lcl) + 3} textAnchor="end">
           Lower
         </text>
-      </svg>
+    </svg>
       <p className="curve-caption">
         Center line (CL) {fmt(cl)} h · upper limit (UCL) {fmt(ucl)} h · lower limit (LCL){' '}
         {fmt(lcl)} h · points outside the limits: {points.filter((p) => p.out_of_control).length}
@@ -750,9 +750,9 @@ function WeibullPage({ estimateM, api }) {
           >
             Drone age now, in flight hours (current_age)
           </FieldLabel>
-          <input
+      <input
             id="age"
-            type="number"
+        type="number"
             min={0}
             step="any"
             inputMode="decimal"
@@ -919,7 +919,7 @@ function ImrPage({ api }) {
         {result && (
           <section className="result" aria-live="polite">
             <ImrBasisAndAssumption result={result} />
-            <dl className="stats">
+          <dl className="stats">
               <Stat
                 label="Unusual missions"
                 abbr="out of limits, I chart"
@@ -959,7 +959,7 @@ function ImrPage({ api }) {
                 value={result.n}
                 info="Number of missions you entered."
               />
-            </dl>
+          </dl>
             <ImrSpark
               title="Hours per mission (Individuals chart)"
               info={`Each mission's hours, in order. Red points fall outside the upper or lower limit: something may have changed and is worth checking. Only points outside the limits are flagged; no other pattern rules are applied. Limits use the standard two-point constant E₂ ≈ ${fmt(result.E2, 3)}.`}
@@ -1453,7 +1453,7 @@ const CONTRIBUTORS = [
   {
     id: 'yang',
     name: 'Yang',
-    role: '',
+    role: 'Feature ideas and code review',
     photo: './contributors/yang.jpg',
     initials: 'Y',
   },
