@@ -14,6 +14,14 @@ export const SAMPLES = {
     failed: [1, 1, 1, 0, 0],
     plan_hours: 50,
   },
+  aged: {
+    label: 'baseline · drone at 150 h',
+    blurb: 'Same fleet, plan 50 h, but this drone has already flown 150 h — expect maintain now',
+    times: [100, 120, 150, 200, 200],
+    failed: [1, 1, 1, 0, 0],
+    plan_hours: 50,
+    current_age: 150,
+  },
   early: {
     label: 'early_wearout',
     blurb: 'Shorter lives — expect maintain now (free-m ≈ 5.7)',

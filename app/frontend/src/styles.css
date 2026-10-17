@@ -1195,3 +1195,48 @@ footer code {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.78rem;
 }
+
+/* Input validation list (shown only while something needs fixing). */
+.validation {
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 60%, var(--line));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  font-size: 0.85rem;
+}
+
+.validation-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.validation ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+textarea[aria-invalid='true'],
+input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* Result groups: next interval vs. fleet lifetime. */
+.stats-head {
+  position: relative;
+  margin: 0.25rem 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.curve .interval {
+  fill: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+
+.curve .mark.now {
+  stroke-dasharray: 3 3;
+}

@@ -59,7 +59,7 @@ Expected for `wearout_baseline.csv`: `c_hat` ≈ 205.670 (SPEC §4 known-answer 
 |---|---|---|
 | GET | `/` | API info |
 | GET | `/docs` | Interactive OpenAPI docs |
-| POST | `/analyze` | JSON body: `times`, `failed`, optional `plan_hours`, `m`. Works locally **and** on the deployed server |
+| POST | `/analyze` | JSON body: `times`, `failed`, optional `plan_hours`, `current_age`, `m`, `estimate_m`. Works locally **and** on the deployed server |
 | GET | `/analyze/file?name=wearout_baseline.csv` | Same analysis on a `data/` CSV. **Local only** (see below) |
 
 ### Local vs deployed
@@ -109,21 +109,35 @@ The full walkthrough, with every number and a "how to read this" line, is in
 
 ### Input validation
 
-Both endpoints reject bad input with **HTTP 400** and a message naming the problem, instead of
-returning a number:
+Every input is checked **before** any statistics run. Bad input gets **HTTP 400** and a message
+naming the problem (and the entry number, e.g. `failed entry 5 must be the number 0 or 1`):
 
-- `time_hours` missing, not a number, NaN/inf, or not positive;
-- `failed` missing or anything other than `0` or `1`;
-- `times` and `failed` empty or of different lengths;
-- no failures at all (`r = 0`), so the scale cannot be estimated.
+- `times`: a non-empty list of numbers, each finite and > 0 (no strings, `null` or NaN/inf);
+- `failed`: same length as `times`, each the **number** `0` or `1` — JSON `true`/`false`, `0.5`,
+  `2` and `"1"` are rejected;
+- `plan_hours`: a finite number > 0; `current_age`: a finite number ≥ 0; `m`: a finite number > 0;
+  `estimate_m`: `true` or `false`;
+- no failures at all (`r = 0`), or fewer than 2 for the free-*m* fit, so the model cannot be fitted;
+- a body that is not a JSON object, or a missing required field.
+
+**HTTP 422** means the input was valid but the model could not produce a finite, trustworthy
+result (for example identical failure times on the free-*m* fit, or values so extreme that a
+number would overflow). The message is always: "These data cannot be calculated right now. Please
+check the data." Unexpected server errors return HTTP 500 with a short message; stack traces stay
+in the server log.
 
 For `/analyze/file`, a bad cell is reported with its line number in the file, counting the header
 as line 1 (a blank `time_hours` in the second data row gives `row 3: time_hours is missing`).
 
 ## Response fields
 
-`c_hat`, `mttf`, `R_plan`, `z_plan`, `B10`, `call` (`maintain now` \| `ok to fly`),
-`n`, `r`, `plan_hours`, `m` (and `source` when using `/analyze/file`).
+Lifetime (new drone): `c_hat`, `mttf`, `B10`, `m`.
+Next interval (drone at `current_age`, flying `plan_hours` more, ending at `end_age`): `R_future`
+(conditional reliability R(end_age)/R(current_age); `R_plan` is the same value kept for older
+clients), `z_plan` (hazard at `end_age`), and the decision from the single 90% rule: `call`
+(`ok to fly` if `R_future` ≥ 0.90, else `maintain now`), `decision_message`, `meets_threshold`,
+`reliability_threshold`. Also `n`, `r`, `current_age`, `plan_hours`, `end_age`, `shape_mode`,
+`estimate_m` (and `source` when using `/analyze/file`).
 
 ## Deploy (Posit Connect)
 

@@ -81,10 +81,11 @@ not check the last two**, so check those yourself before sending a file:
   tool requires the `time_hours` and `failed` columns and ignores
   `drone_id`)*
 
-When the same numbers are sent as JSON to `POST /analyze`, `NaN`, a `failed`
-of `2`, or empty or mismatched lists also give HTTP 400. A `null` or a
-non-whole `failed` such as `0.5` is refused earlier by the API's input schema,
-with HTTP 422.
+When the same numbers are sent as JSON to `POST /analyze`, `NaN`, `null`, a
+`failed` of `2`, `0.5` or `true`/`false`, a negative `current_age`, or empty or
+mismatched lists also give HTTP 400, with a message naming the entry. Valid data
+that the model cannot calculate give HTTP 422 ("These data cannot be calculated
+right now. Please check the data.").
 
 ## How you would collect this for real
 
@@ -94,9 +95,8 @@ with HTTP 422.
 
 ## Expected behavior (for demos)
 
-All values with *m* = 2 and `plan_hours` = 100, rounded. Checked against
-`app/qc.py`. The rule: **maintain now** if B10 ≤ `plan_hours` or
-R(`plan_hours`) < 0.90, else **ok to fly**.
+All values with *m* = 2, `current_age` = 0 and `plan_hours` = 100, rounded.
+Checked against `app/qc.py`. The rule: **ok to fly** if the next-interval reliability `R_future` = R(`current_age` + `plan_hours`) / R(`current_age`) is at least 90% (with `current_age` = 0 this is R(`plan_hours`)); otherwise **maintain now** (one rule, decided in `qc.py`; exactly 90% passes).
 
 | File | Σ *t*² | *r* | \(\hat c\) (h) | MTTF (h) | B10 (h) | R(100) | z(100) (per h) | Call |
 |---|---|---|---|---|---|---|---|---|

@@ -160,11 +160,115 @@ function parseNumberList(text) {
   return vals
 }
 
-function ReliabilityCurve({ c, m = 2, planHours, B10 }) {
+const NUMBER_RE = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i
+const MAX_SHOWN_ERRORS = 6
+
+function splitEntries(text) {
+  const t = String(text ?? '').trim()
+  return t === '' ? [] : t.split(/[\s,;]+/).filter(Boolean)
+}
+
+function readNumber(raw) {
+  const s = String(raw ?? '').trim()
+  if (!NUMBER_RE.test(s)) return NaN
+  return Number(s)
+}
+
+/**
+ * Check the Weibull form before anything is sent. Returns { errors, fields, values }.
+ * The backend repeats every check and stays the authority; this only gives faster,
+ * clearer feedback.
+ */
+function validateWeibullInputs({ timesText, failedText, planHours, currentAge }) {
+  const errors = []
+  const fields = {}
+  const tParts = splitEntries(timesText)
+  const fParts = splitEntries(failedText)
+  const times = []
+  const failed = []
+
+  if (tParts.length === 0) {
+    errors.push('Flight hours: enter at least one number.')
+    fields.times = true
+  }
+  tParts.forEach((p, i) => {
+    const n = readNumber(p)
+    if (!Number.isFinite(n)) {
+      errors.push(`Flight hours, entry ${i + 1} ("${p}"): not a number. Use digits like 120 or 87.5.`)
+      fields.times = true
+    } else if (n <= 0) {
+      errors.push(`Flight hours, entry ${i + 1} (${p}): must be greater than 0.`)
+      fields.times = true
+    } else {
+      times.push(n)
+    }
+  })
+
+  if (fParts.length === 0) {
+    errors.push('Did it fail?: enter one 0 or 1 per drone.')
+    fields.failed = true
+  }
+  fParts.forEach((p, i) => {
+    const n = readNumber(p)
+    if (n === 0 || n === 1) {
+      failed.push(n)
+    } else {
+      errors.push(`Did it fail?, entry ${i + 1} ("${p}"): must be 0 (still flying) or 1 (failed).`)
+      fields.failed = true
+    }
+  })
+
+  if (tParts.length > 0 && fParts.length > 0 && tParts.length !== fParts.length) {
+    errors.push(
+      `You entered ${tParts.length} flight-hour values but ${fParts.length} failure flags. Each drone needs one of each, in the same order.`,
+    )
+    fields.times = true
+    fields.failed = true
+  }
+
+  const age = readNumber(currentAge)
+  if (!Number.isFinite(age)) {
+    errors.push('Drone age now: enter the hours already flown (0 for a new drone).')
+    fields.age = true
+  } else if (age < 0) {
+    errors.push('Drone age now: cannot be negative.')
+    fields.age = true
+  }
+
+  const plan = readNumber(planHours)
+  if (!Number.isFinite(plan)) {
+    errors.push('Planned flight hours: enter a number greater than 0.')
+    fields.plan = true
+  } else if (plan <= 0) {
+    errors.push('Planned flight hours: must be greater than 0.')
+    fields.plan = true
+  }
+
+  return { errors, fields, values: { times, failed, plan_hours: plan, current_age: age } }
+}
+
+function ValidationList({ id, errors }) {
+  if (errors.length === 0) return null
+  const shown = errors.slice(0, MAX_SHOWN_ERRORS)
+  const more = errors.length - shown.length
+  return (
+    <div id={id} className="validation" role="status" aria-live="polite">
+      <p className="validation-title">Please fix before running:</p>
+      <ul>
+        {shown.map((msg) => (
+          <li key={msg}>{msg}</li>
+        ))}
+        {more > 0 && <li>…and {more} more.</li>}
+      </ul>
+    </div>
+  )
+}
+
+function ReliabilityCurve({ c, m = 2, currentAge = 0, endAge, B10 }) {
   const W = 560
   const H = 200
   const pad = { l: 36, r: 16, t: 16, b: 28 }
-  const tMax = Math.max(c * 1.4, planHours * 1.2, B10 * 1.5, 50)
+  const tMax = Math.max(c * 1.4, endAge * 1.2, B10 * 1.5, 50)
   const xs = Array.from({ length: 60 }, (_, i) => (tMax * i) / 59)
   const R = (t) => Math.exp(-((t / c) ** m))
   const x = (t) => pad.l + ((W - pad.l - pad.r) * t) / tMax
@@ -183,9 +287,21 @@ function ReliabilityCurve({ c, m = 2, planHours, B10 }) {
         90%
       </text>
       <polyline className="series" points={points} />
-      <line className="mark" x1={x(planHours)} x2={x(planHours)} y1={pad.t} y2={H - pad.b} />
-      <text className="axis" x={x(planHours)} y={H - 8} textAnchor="middle">
-        plan {fmt(planHours, 0)} h
+      {currentAge > 0 && (
+        <>
+          <rect
+            className="interval"
+            x={x(currentAge)}
+            y={pad.t}
+            width={Math.max(x(endAge) - x(currentAge), 1)}
+            height={H - pad.t - pad.b}
+          />
+          <line className="mark now" x1={x(currentAge)} x2={x(currentAge)} y1={pad.t} y2={H - pad.b} />
+        </>
+      )}
+      <line className="mark" x1={x(endAge)} x2={x(endAge)} y1={pad.t} y2={H - pad.b} />
+      <text className="axis" x={x(endAge)} y={H - 8} textAnchor="middle">
+        {currentAge > 0 ? `${fmt(currentAge, 0)}→${fmt(endAge, 0)} h` : `plan ${fmt(endAge, 0)} h`}
       </text>
       <circle className="pt" cx={x(B10)} cy={y(0.9)} r={5}>
         <title>{`10% failure age (B10) ≈ ${fmt(B10)} flight hours`}</title>
@@ -197,6 +313,118 @@ function ReliabilityCurve({ c, m = 2, planHours, B10 }) {
         {fmt(tMax, 0)} h
       </text>
     </svg>
+  )
+}
+
+// One Weibull result view for the Check page and the History detail. The decision text
+// comes from the backend (decision_message); the frontend never re-applies the rule.
+function WeibullResultView({ result, estimateM }) {
+  const age = Number.isFinite(result.current_age) ? result.current_age : 0
+  const end = Number.isFinite(result.end_age) ? result.end_age : age + result.plan_hours
+  const rFuture = Number.isFinite(result.R_future) ? result.R_future : result.R_plan
+  const message =
+    result.decision_message ||
+    (result.call === 'maintain now'
+      ? 'Saved with an earlier version: maintain now.'
+      : 'Saved with an earlier version: ok to fly.')
+  return (
+    <section className="result" aria-live="polite">
+      <p className={result.call === 'maintain now' ? 'call danger' : 'call safe'}>
+        <strong>{result.call}</strong>
+        <span>
+          {message}
+          {estimateM
+            ? ` Wear-out shape estimated from your data (m̂ = ${fmt(result.m, 3)}).`
+            : ' Wear-out shape fixed at m = 2.'}
+        </span>
+      </p>
+
+      <h3 className="stats-head">
+        Next interval: {fmt(age, 0)} → {fmt(end, 0)} flight hours
+        <InfoTip
+          topic="Next interval"
+          text="These results are for a drone that has already flown its current age and will fly the planned hours more. The 90% decision uses the chance to get through this interval."
+        />
+      </h3>
+      <dl className="stats">
+        <Stat
+          label="Chance to get through the next interval"
+          abbr="conditional reliability"
+          value={fmtPct(rFuture)}
+          info={`For a drone that has already flown ${fmt(age, 0)} hours, the chance it flies the next ${fmt(result.plan_hours, 0)} hours without failing. 90% or more meets the threshold.`}
+        />
+        <Stat
+          label="Failure rate at end of interval"
+          abbr="hazard z"
+          value={fmt(result.z_plan, 5)}
+          unit="per flight hour"
+          info={`How fast a drone is failing once it reaches ${fmt(end, 0)} hours. Higher is riskier.`}
+        />
+        <Stat
+          label="Drone age now / planned hours"
+          abbr="current_age / plan_hours"
+          value={`${fmt(age, 0)} / ${fmt(result.plan_hours, 0)}`}
+          unit="flight hours"
+          info="Hours already flown, and the additional hours planned before the next service."
+        />
+      </dl>
+
+      <h3 className="stats-head">
+        Fleet lifetime (from new)
+        <InfoTip
+          topic="Fleet lifetime"
+          text="These describe a brand-new drone from this fleet. They do not change with the drone's current age."
+        />
+      </h3>
+      <dl className="stats">
+        <Stat
+          label="10% failure age"
+          abbr="B10 life"
+          value={fmt(result.B10)}
+          unit="flight hours"
+          info="Counted from new: by this age, 1 drone in 10 is expected to have failed."
+        />
+        <Stat
+          label="Average life"
+          abbr="MTTF, mean time to failure"
+          value={fmt(result.mttf)}
+          unit="flight hours"
+          info="Counted from new: how long a drone lasts on average before it fails."
+        />
+        <Stat
+          label="Characteristic life"
+          abbr="ĉ"
+          value={fmt(result.c_hat)}
+          unit="flight hours"
+          info="Counted from new: by this age, about 63% of drones are expected to have failed."
+        />
+        <Stat
+          label={estimateM ? 'Wear-out shape, estimated' : 'Wear-out shape, fixed'}
+          abbr={estimateM ? 'm̂' : 'm'}
+          value={fmt(result.m, estimateM ? 3 : 0)}
+          info={
+            estimateM
+              ? 'Above 1: parts wear out with age. About 1: failures are random. Below 1: early failures.'
+              : 'Assumed, not measured: older drones are more likely to fail.'
+          }
+        />
+        <Stat
+          label="Drones / failures"
+          abbr="n / r"
+          value={`${result.n} / ${result.r}`}
+          info="Drones in your data, and how many of them failed."
+        />
+      </dl>
+
+      <h3 className="chart-head">
+        Reliability curve
+        <InfoTip
+          topic="Reliability curve"
+          text="The share of new drones still working at each age, in flight hours. The horizontal line is 90% and the dot is the 10% failure age (B10). The shaded band is the next interval, from the drone's current age to the end of the planned hours."
+        />
+      </h3>
+      <ReliabilityCurve c={result.c_hat} m={result.m} currentAge={age} endAge={end} B10={result.B10} />
+    </section>
   )
 }
 
@@ -331,7 +559,8 @@ function WeibullPage({ estimateM, api }) {
   const initial = estimateM ? SAMPLES.early : SAMPLES.baseline
   const [timesText, setTimesText] = useState(initial.times.join(', '))
   const [failedText, setFailedText] = useState(initial.failed.join(', '))
-  const [planHours, setPlanHours] = useState(initial.plan_hours)
+  const [planHours, setPlanHours] = useState(String(initial.plan_hours))
+  const [currentAge, setCurrentAge] = useState(String(initial.current_age ?? 0))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
@@ -342,7 +571,8 @@ function WeibullPage({ estimateM, api }) {
     startTransition(() => {
       setTimesText(s.times.join(', '))
       setFailedText(s.failed.join(', '))
-      setPlanHours(s.plan_hours)
+      setPlanHours(String(s.plan_hours))
+      setCurrentAge(String(s.current_age ?? 0))
       setError(null)
       setResult(null)
       setModalOpen(false)
@@ -355,27 +585,28 @@ function WeibullPage({ estimateM, api }) {
     setError(null)
     setModalOpen(false)
     try {
-      const times = parseNumberList(timesText)
-      const failed = parseNumberList(failedText).map((n) => Math.trunc(n))
-      if (times.length !== failed.length) {
-        throw new Error('times and failed must have the same length.')
+      if (check.errors.length > 0) {
+        throw new Error('Some inputs need fixing; see the list under the form.')
       }
+      const { times, failed, plan_hours, current_age } = check.values
       const out = await analyzeFleet({
         times,
         failed,
-        plan_hours: Number(planHours) || 100,
+        plan_hours,
+        current_age,
         m: 2,
         estimate_m: estimateM,
       })
       appendHistory({
         kind: estimateM ? 'free-m' : 'weibull-m2',
         title: estimateM ? 'How sharp is the wear-out?' : 'Should we service now?',
-        summary: `ĉ ${fmt(out.c_hat)} h · chance ${fmtPct(out.R_plan)} · plan ${fmt(out.plan_hours, 0)} h`,
+        summary: `age ${fmt(out.current_age, 0)} h + ${fmt(out.plan_hours, 0)} h · chance ${fmtPct(out.R_future)} · ĉ ${fmt(out.c_hat)} h`,
         call: out.call,
         detail: {
           times,
           failed,
           plan_hours: out.plan_hours,
+          current_age: out.current_age,
           result: out,
         },
       })
@@ -390,10 +621,11 @@ function WeibullPage({ estimateM, api }) {
     }
   }
 
-  const callClass = useMemo(() => {
-    if (!result) return ''
-    return result.call === 'maintain now' ? 'call danger' : 'call safe'
-  }, [result])
+  const check = useMemo(
+    () => validateWeibullInputs({ timesText, failedText, planHours, currentAge }),
+    [timesText, failedText, planHours, currentAge],
+  )
+  const errorsId = estimateM ? 'free-input-errors' : 'fixed-input-errors'
 
   return (
     <>
@@ -422,6 +654,8 @@ function WeibullPage({ estimateM, api }) {
             value={timesText}
             onChange={(e) => setTimesText(e.target.value)}
             spellCheck={false}
+            aria-invalid={!!check.fields.times}
+            aria-describedby={check.fields.times ? errorsId : undefined}
           />
 
           <FieldLabel
@@ -437,27 +671,57 @@ function WeibullPage({ estimateM, api }) {
             value={failedText}
             onChange={(e) => setFailedText(e.target.value)}
             spellCheck={false}
+            aria-invalid={!!check.fields.failed}
+            aria-describedby={check.fields.failed ? errorsId : undefined}
+          />
+
+          <FieldLabel
+            htmlFor="age"
+            topic="Drone age now"
+            info="Flight hours this drone has already flown. Use 0 for a new drone. The check asks whether it gets through the planned hours on top of this age."
+          >
+            Drone age now, in flight hours (current_age)
+          </FieldLabel>
+          <input
+            id="age"
+            type="number"
+            min={0}
+            step="any"
+            inputMode="decimal"
+            value={currentAge}
+            onChange={(e) => setCurrentAge(e.target.value)}
+            aria-invalid={!!check.fields.age}
+            aria-describedby={check.fields.age ? errorsId : undefined}
           />
 
           <FieldLabel
             htmlFor="plan"
             topic="Planned flight hours before next service"
-            info="How long the fleet should fly before it is serviced, in hours."
+            info="Additional flight hours planned from now until the next service."
           >
             Planned flight hours before next service (plan_hours)
           </FieldLabel>
           <input
             id="plan"
             type="number"
-            min={1}
-            step={1}
+            min={0}
+            step="any"
+            inputMode="decimal"
             value={planHours}
             onChange={(e) => setPlanHours(e.target.value)}
+            aria-invalid={!!check.fields.plan}
+            aria-describedby={check.fields.plan ? errorsId : undefined}
           />
         </div>
 
+        <ValidationList id={errorsId} errors={check.errors} />
+
         <div className="actions">
-          <button type="submit" className="primary" disabled={busy || api.state === 'down'}>
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || api.state === 'down' || check.errors.length > 0}
+          >
             {busy
               ? 'Calculating…'
               : estimateM
@@ -472,88 +736,7 @@ function WeibullPage({ estimateM, api }) {
         title={estimateM ? 'Wear-pattern check results' : 'Maintenance check results'}
         onClose={() => setModalOpen(false)}
       >
-        {result && (
-          <section className="result" aria-live="polite">
-            <p className={callClass}>
-              <strong>{result.call}</strong>
-              <span>
-                {result.call === 'maintain now'
-                  ? 'Ground and service before the next mission.'
-                  : 'Reliability for this plan horizon looks acceptable.'}
-                {estimateM
-                  ? ` Wear-out shape estimated from your data (m̂ = ${fmt(result.m, 3)}).`
-                  : ' Wear-out shape fixed at m = 2.'}
-              </span>
-            </p>
-
-            <dl className="stats">
-              <Stat
-                label="Chance to complete the plan"
-                abbr="reliability R"
-                value={fmtPct(result.R_plan)}
-                info={`Share of drones expected to fly ${fmt(result.plan_hours, 0)} hours without failing. Below 90% means service first.`}
-              />
-              <Stat
-                label="10% failure age"
-                abbr="B10 life"
-                value={fmt(result.B10)}
-                unit="flight hours"
-                info="By this age, 1 drone in 10 is expected to have failed. Service before it."
-              />
-              <Stat
-                label="Average life"
-                abbr="MTTF, mean time to failure"
-                value={fmt(result.mttf)}
-                unit="flight hours"
-                info="How long a drone lasts on average before it fails."
-              />
-              <Stat
-                label="Characteristic life"
-                abbr="ĉ"
-                value={fmt(result.c_hat)}
-                unit="flight hours"
-                info="By this age, about 63% of drones are expected to have failed."
-              />
-              <Stat
-                label="Failure rate at planned hours"
-                abbr="hazard z"
-                value={fmt(result.z_plan, 5)}
-                unit="per flight hour"
-                info={`How fast a drone that has reached ${fmt(result.plan_hours, 0)} hours is failing. Higher is riskier.`}
-              />
-              <Stat
-                label={estimateM ? 'Wear-out shape, estimated' : 'Wear-out shape, fixed'}
-                abbr={estimateM ? 'm̂' : 'm'}
-                value={fmt(result.m, estimateM ? 3 : 0)}
-                info={
-                  estimateM
-                    ? 'Above 1: parts wear out with age. About 1: failures are random. Below 1: early failures.'
-                    : 'Assumed, not measured: older drones are more likely to fail.'
-                }
-              />
-              <Stat
-                label="Drones / failures"
-                abbr="n / r"
-                value={`${result.n} / ${result.r}`}
-                info="Drones in your data, and how many of them failed."
-              />
-            </dl>
-
-            <h3 className="chart-head">
-              Reliability curve
-              <InfoTip
-                topic="Reliability curve"
-                text="The share of drones still working at each age, in flight hours. The horizontal line is 90%, the vertical mark is your planned hours, and the dot is the 10% failure age (B10)."
-              />
-            </h3>
-            <ReliabilityCurve
-              c={result.c_hat}
-              m={result.m}
-              planHours={result.plan_hours}
-              B10={result.B10}
-            />
-          </section>
-        )}
+        {result && <WeibullResultView result={result} estimateM={estimateM} />}
       </ResultModal>
     </>
   )
@@ -806,19 +989,24 @@ function ManualPage({ onOpenCheck, onOpenApi, apiReady }) {
         <h3>How to read the popup</h3>
         <ul className="manual-list">
           <li>
-            <strong>maintain now</strong> — B10 life is at or below your plan, or fewer than 90% of
-            drones are expected to finish the plan. Service before dispatch.
+            <strong>One rule, set by the server:</strong> the chance to get through the next
+            interval (from the drone's current age to current age + planned hours) must be at least
+            90%.
           </li>
           <li>
-            <strong>ok to fly</strong> — the plan looks acceptable under the same rule.
+            <strong>ok to fly</strong> — “Model-estimated reliability meets the 90% threshold.”
           </li>
           <li>
-            <strong>Chance to complete the plan</strong> — reliability as a percentage. Below 90% →
-            service first.
+            <strong>maintain now</strong> — “Model-estimated reliability is below the 90% threshold;
+            maintenance review is recommended.”
           </li>
           <li>
-            <strong>10% failure age (B10)</strong> — age when 1 in 10 drones is expected to have
-            failed.
+            <strong>Drone age now</strong> — hours already flown. Leave it at 0 for a new drone; an
+            older drone under wear-out has a lower chance of getting through the same plan.
+          </li>
+          <li>
+            <strong>Fleet lifetime</strong> numbers (10% failure age B10, average life MTTF,
+            characteristic life ĉ) are counted from new and do not change with age.
           </li>
           <li>
             Hover or tap the small <strong>i</strong> icons for short definitions of each number.
@@ -916,7 +1104,7 @@ function ApiDocsPage() {
     {
       method: 'POST',
       path: '/analyze',
-      note: 'Weibull fit. Body: times, failed, optional plan_hours, m, estimate_m. Use this on Connect.',
+      note: 'Weibull fit. Body: times, failed (numbers 0/1), optional plan_hours, current_age, m, estimate_m. Returns R_future, call and decision_message. 400 = invalid input, 422 = cannot be calculated. Use this on Connect.',
     },
     {
       method: 'GET',
@@ -995,8 +1183,11 @@ function ApiDocsPage() {
         <h3>Example (live)</h3>
         <pre className="manual-code">{`curl -X POST "${API_URL}/analyze" \\
   -H "Content-Type: application/json" \\
-  -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0],"plan_hours":100}'`}</pre>
-        <p className="manual-note">Expect c_hat ≈ 205.670 and call &quot;maintain now&quot;.</p>
+  -d '{"times":[100,120,150,200,200],"failed":[1,1,1,0,0],"plan_hours":100,"current_age":0}'`}</pre>
+        <p className="manual-note">
+          Expect c_hat ≈ 205.670, R_future ≈ 0.7895 and call &quot;maintain now&quot; with the
+          below-90% decision_message.
+        </p>
       </section>
     </article>
   )
@@ -1240,92 +1431,7 @@ function HistoryPage() {
         onClose={() => setSelected(null)}
       >
         {selected && selectedResult && selected.kind !== 'imr' && (
-          <section className="result">
-            <p
-              className={
-                selectedResult.call === 'maintain now' ? 'call danger' : 'call safe'
-              }
-            >
-              <strong>{selectedResult.call}</strong>
-              <span>
-                {selectedResult.call === 'maintain now'
-                  ? 'Ground and service before the next mission.'
-                  : 'Reliability for this plan horizon looks acceptable.'}
-                {selected.kind === 'free-m'
-                  ? ` Wear-out shape estimated from your data (m̂ = ${fmt(selectedResult.m, 3)}).`
-                  : ' Wear-out shape fixed at m = 2.'}
-              </span>
-            </p>
-            <dl className="stats">
-              <Stat
-                label="Chance to complete the plan"
-                abbr="reliability R"
-                value={fmtPct(selectedResult.R_plan)}
-                info={`Share of drones expected to fly ${fmt(selectedResult.plan_hours, 0)} hours without failing. Below 90% means service first.`}
-              />
-              <Stat
-                label="10% failure age"
-                abbr="B10 life"
-                value={fmt(selectedResult.B10)}
-                unit="flight hours"
-                info="By this age, 1 drone in 10 is expected to have failed. Service before it."
-              />
-              <Stat
-                label="Average life"
-                abbr="MTTF, mean time to failure"
-                value={fmt(selectedResult.mttf)}
-                unit="flight hours"
-                info="How long a drone lasts on average before it fails."
-              />
-              <Stat
-                label="Characteristic life"
-                abbr="ĉ"
-                value={fmt(selectedResult.c_hat)}
-                unit="flight hours"
-                info="By this age, about 63% of drones are expected to have failed."
-              />
-              <Stat
-                label="Failure rate at planned hours"
-                abbr="hazard z"
-                value={fmt(selectedResult.z_plan, 5)}
-                unit="per flight hour"
-                info={`How fast a drone that has reached ${fmt(selectedResult.plan_hours, 0)} hours is failing. Higher is riskier.`}
-              />
-              <Stat
-                label={
-                  selected.kind === 'free-m'
-                    ? 'Wear-out shape, estimated'
-                    : 'Wear-out shape, fixed'
-                }
-                abbr={selected.kind === 'free-m' ? 'm̂' : 'm'}
-                value={fmt(selectedResult.m, selected.kind === 'free-m' ? 3 : 0)}
-                info={
-                  selected.kind === 'free-m'
-                    ? 'Above 1: parts wear out with age. About 1: failures are random. Below 1: early failures.'
-                    : 'Assumed, not measured: older drones are more likely to fail.'
-                }
-              />
-              <Stat
-                label="Drones / failures"
-                abbr="n / r"
-                value={`${selectedResult.n} / ${selectedResult.r}`}
-                info="Drones in your data, and how many of them failed."
-              />
-            </dl>
-            <h3 className="chart-head">
-              Reliability curve
-              <InfoTip
-                topic="Reliability curve"
-                text="The share of drones still working at each age, in flight hours. The horizontal line is 90%, the vertical mark is your planned hours, and the dot is the 10% failure age (B10)."
-              />
-            </h3>
-            <ReliabilityCurve
-              c={selectedResult.c_hat}
-              m={selectedResult.m}
-              planHours={selectedResult.plan_hours}
-              B10={selectedResult.B10}
-            />
-          </section>
+          <WeibullResultView result={selectedResult} estimateM={selected.kind === 'free-m'} />
         )}
         {selected && selectedResult && selected.kind === 'imr' && (
           <section className="result">

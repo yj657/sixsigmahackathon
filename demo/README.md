@@ -61,8 +61,10 @@ rounded; the API prints more digits.
 | `early_wearout.csv` | 6 | 4 | 63.934 | 56.660 | 20.752 | 0.087 | maintain now |
 | `edge_all_censored.csv` | 3 | 0 | — | — | — | — | HTTP 400 error |
 
-**The decision rule** (in `qc.py`): **maintain now** if B10 ≤ `plan_hours` or R(`plan_hours`) < 0.90;
-otherwise **ok to fly**.
+**The decision rule** (in `qc.py`, the only place it lives): **ok to fly** if the next-interval reliability `R_future` = R(`current_age` + `plan_hours`) / R(`current_age`) is at least 90% (with `current_age` = 0 this is R(`plan_hours`)); otherwise **maintain now** (one rule, decided in `qc.py`; exactly 90% passes). The API
+also returns `decision_message`, the sentence the UI shows. All rows above use `current_age` = 0, so
+`R_future` = R(`plan_hours`); the same fleet with `current_age` = 150 and `plan_hours` = 50 gives
+`R_future` ≈ 0.6612 → **maintain now**.
 
 ---
 
@@ -186,9 +188,11 @@ curl -X POST "$LIVE_URL/imr" -H "Content-Type: application/json" -d '{"values":[
 | `c_hat` | hours | characteristic life: by this age about 63.2% of drones have failed |
 | `mttf` | hours | mean time to failure, `c_hat × Γ(1 + 1/m)` |
 | `B10` | hours | age by which 10% of drones are expected to fail |
-| `R_plan` | probability | chance a drone survives to `plan_hours` flight hours, counted from 0 h |
-| `z_plan` | failures per hour | hazard rate at `plan_hours` |
+| `R_future` | probability | chance a drone at `current_age` gets through the next `plan_hours` (conditional reliability) |
+| `R_plan` | probability | same value as `R_future`, kept for older clients |
+| `z_plan` | failures per hour | hazard rate at `end_age` = `current_age` + `plan_hours` |
 | `call` | text | `maintain now` or `ok to fly` (rule in section 2) |
+| `decision_message` | text | the sentence to show users for that call |
 | `n`, `r` | count | drones in the data, and how many failed |
 | `source` | text | the CSV used (file endpoint only) |
 
@@ -241,12 +245,13 @@ same JSON.
 ## 6. Limits to say out loud
 
 - Primary path still assumes *m* = 2; free-*m* is a secondary check (needs *r* ≥ 2).
-- `R_plan` is measured from 0 h, not from a drone's current age.
+- `R_future` is for the `current_age` you send (default 0 = a new drone).
 - I-MR flags points beyond limits only (no Western Electric run rules).
 - The datasets are small and invented (see the [codebook](../data/README.md)); with 3–4 failures the
   estimates are rough.
 - Bad input is refused, not guessed at: a blank or `NaN` time, a time ≤ 0, or a `failed` other
-  than 0/1 returns HTTP 400 (HTTP 422 for a JSON `null` or `0.5`). Duplicate `drone_id`s are not
+  than the numbers 0/1 (including JSON `true`/`false`) returns HTTP 400; valid data that cannot be
+  calculated return HTTP 422 with a plain message. Duplicate `drone_id`s are not
   checked; see the [codebook's rules for valid data](../data/README.md#rules-for-valid-data).
 
 ## 7. Check it yourself

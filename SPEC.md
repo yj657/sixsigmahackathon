@@ -27,7 +27,8 @@ cannot measure costs points.
 |---|---|---|
 | `time_hours` | numeric, flight hours (or cycles treated as hours) | drone log / hour meter at failure or at inspection |
 | `failed` | 0/1 (1 = failed in flight or grounded as failed; 0 = still operating = right-censored / Type I) | maintenance ticket or still-flying status |
-| optional `plan_hours` | numeric, hours of the next mission or planning horizon (default 100) | dispatch schedule |
+| optional `plan_hours` | numeric, additional hours planned before the next service, > 0 (default 100) | dispatch schedule |
+| optional `current_age` | numeric, hours the drone has already flown, ≥ 0 (default 0 = new drone) | the drone's hour meter |
 
 ## 4. The statistics, and why (rubric: valid QC analysis 25)
 Say the method in words before any code exists. Load the `stats-first-steering` skill first.
@@ -60,7 +61,7 @@ Fixed for every team:
 - A small tool that runs beats a large tool that does not.
 
 ## 6. Outputs
-- **What the user sees:** fitted \(\hat c\) (hours), MTTF (hours), R(plan_hours), hazard z(plan_hours), B10 life (hours), and a one-line call: **maintain now** if B10 ≤ plan_hours or R(plan_hours) < 0.90, else **ok to fly**; plus a reliability curve R(t) vs hours. Optional: free-\(\hat m\) fit and an I-MR page for mission-hour process control. How to read: if R for the next mission is below 0.90, ground and service before dispatch.
+- **What the user sees:** lifetime metrics for a new drone — fitted \(\hat c\) (hours), MTTF (hours), B10 life (hours); next-interval metrics for a drone at `current_age` flying `plan_hours` more — conditional reliability R_future = R(current_age + plan_hours) / R(current_age) and the hazard at current_age + plan_hours; and one backend decision: **ok to fly** if the next-interval reliability `R_future` = R(`current_age` + `plan_hours`) / R(`current_age`) is at least 90% (with `current_age` = 0 this is R(`plan_hours`)); otherwise **maintain now** (one rule, decided in `qc.py`; exactly 90% passes), with the `decision_message` sentence; plus a reliability curve R(t) vs hours. Optional: free-\(\hat m\) fit and an I-MR page for mission-hour process control. How to read: if R for the next mission is below 0.90, ground and service before dispatch.
 
 ## 7. Test datasets and codebook (rubric: demo 10, datasets 5, codebook 5)
 2-3 small CSVs in `data/`, invented but shaped like real field data, each showing one behavior.

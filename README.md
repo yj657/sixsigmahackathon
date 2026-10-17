@@ -54,15 +54,28 @@ The tool fits a **Weibull life model** to the fleet's flight hours ([SPEC §4](S
   - reliability \(R(t) = \exp(-(t/\hat c)^m)\)
   - hazard \(z(t) = (m/\hat c)(t/\hat c)^{m-1}\)
   - B10 life \(= \hat c\,(-\ln 0.9)^{1/m}\), the age by which 10% of drones fail
-- **The call:** `maintain now` if B10 ≤ `plan_hours` or R(`plan_hours`) < 0.90; otherwise
-  `ok to fly`.
+- **Drones already in service (`current_age`).** For a drone that has already flown *a* hours and
+  will fly *p* more (`plan_hours`), the chance to get through that next interval is the
+  *conditional* reliability
+  \(R_{\text{future}} = R(a+p)/R(a) = \exp\!\big(-[((a+p)/\hat c)^m - (a/\hat c)^m]\big)\).
+  At `current_age` = 0 (the default) this is exactly the lifetime R(`plan_hours`).
+  **Lifetime metrics** (ĉ, MTTF, B10) describe a new drone; **next-interval metrics**
+  (`R_future`, the hazard at the end of the interval, the call) depend on the drone's age.
+- **One 90% rule, decided by the backend:** `R_future` ≥ 90% → `call` = `ok to fly` and
+  `decision_message` = "Model-estimated reliability meets the 90% threshold."; below 90% →
+  `maintain now` and "Model-estimated reliability is below the 90% threshold; maintenance review is
+  recommended." A value mathematically equal to 90% passes (a 1e-12 tolerance absorbs rounding).
+- **Numerically safe.** Every \(t^m\) term is computed in log space, so huge flight hours or
+  shapes cannot overflow; data that still cannot be fitted return HTTP 422 with "These data
+  cannot be calculated right now. Please check the data." instead of a crash.
 
 **Known answer** (SPEC §4 B, checked by the tests): flight hours `[100, 120, 150, 200, 200]` with
 failed `[1, 1, 1, 0, 0]` give Σt² = 126900, *r* = 3, so \(\hat c = \sqrt{42300} \approx 205.670\) h,
 MTTF ≈ 182.270 h, B10 ≈ 66.759 h → `maintain now` for a 100 h plan.
 
-**Limits:** primary path assumes *m* = 2; R(`plan_hours`) is measured from 0 h, not from a drone's
-current age; the test datasets are small and invented, so the estimates are rough.
+**Limits:** primary path assumes *m* = 2; all drones in the data are assumed to come from one
+wear-out population, and `current_age` must be the age of the drone you are checking; the test
+datasets are small and invented, so the estimates are rough.
 
 ---
 
@@ -139,9 +152,10 @@ statistics stay in `app/qc.py`.
 |---|---|---|---|---|
 | `times` | `POST /analyze` body | list of numbers, flight hours, each > 0 | yes | Hours on each drone at failure, or its current hours if still flying |
 | `failed` | `POST /analyze` body | list of 0/1, same length and order as `times` | yes | 1 = the drone failed; 0 = still flying or removed without failing (censored) |
-| `plan_hours` | body or query | number, hours, > 0 | no, default 100 | The flying horizon you want to check before the next service |
+| `plan_hours` | body or query | number, hours, finite and > 0 | no, default 100 | Additional flight hours planned before the next service |
+| `current_age` | body or query | number, hours, finite and ≥ 0 | no, default 0 | Hours this drone has already flown (0 = a new drone) |
 | `m` | body or query | number, > 0 | no, default 2 | Weibull shape when `estimate_m` is false |
-| `estimate_m` | body or query | bool | no, default false | If true, jointly MLE shape and scale (*r* ≥ 2) |
+| `estimate_m` | body or query | `true`/`false` | no, default false | If true, jointly MLE shape and scale (*r* ≥ 2) |
 | `values` | `POST /imr` body | list of numbers | yes, for I-MR | Ordered mission-hour series |
 | `name` | `/analyze/file` or `/imr/file` query | a CSV filename in `data/` | yes, for that route | Which test dataset to read (local only) |
 
@@ -154,12 +168,15 @@ As a CSV, the same data is one row per drone with columns `drone_id,time_hours,f
 |---|---|---|
 | `c_hat` | hours | characteristic life: by this age about 63.2% of drones have failed |
 | `mttf` | hours | mean time to failure |
-| `B10` | hours | age by which 10% of drones are expected to fail |
-| `R_plan` | probability | chance a drone survives to `plan_hours`, counted from 0 h |
-| `z_plan` | failures per hour | hazard rate at `plan_hours` |
-| `call` | text | `maintain now` or `ok to fly` |
+| `B10` | hours | age by which 10% of new drones are expected to fail (lifetime) |
+| `R_future` | probability | chance a drone at `current_age` gets through the next `plan_hours` (conditional reliability) |
+| `R_plan` | probability | same value as `R_future`, kept for older clients |
+| `z_plan` | failures per hour | hazard rate at the end of the interval (`end_age`) |
+| `call` | text | `maintain now` or `ok to fly`, from the 90% rule |
+| `decision_message` | text | the sentence to show users (see the rule above) |
+| `meets_threshold`, `reliability_threshold` | bool, 0.90 | whether `R_future` ≥ 90%, and the threshold used |
 | `n`, `r` | count | drones in the data, and how many failed |
-| `plan_hours`, `m` | — | the values used |
+| `current_age`, `plan_hours`, `end_age`, `m` | hours / — | the values used; `end_age` = `current_age` + `plan_hours` |
 | `source` | text | the CSV used (`/analyze/file` only) |
 
 ## Endpoints
@@ -168,14 +185,17 @@ As a CSV, the same data is one row per drone with columns `drone_id,time_hours,f
 |---|---|---|
 | GET | `/` | API info and links |
 | GET | `/docs` | Interactive docs: try every endpoint in the browser |
-| POST | `/analyze` | Weibull analysis on JSON `times`, `failed`, optional `plan_hours`, `m`, `estimate_m`. **Use this on the live server** |
+| POST | `/analyze` | Weibull analysis on JSON `times`, `failed`, optional `plan_hours`, `current_age`, `m`, `estimate_m`. **Use this on the live server** |
 | GET | `/analyze/file?name=...` | Same analysis on a CSV in `data/`. **Local only**: `data/` is not deployed, so online it answers 404 |
 | POST | `/imr` | I-MR chart on JSON `values` |
 | GET | `/imr/file?name=...` | I-MR on a CSV in `data/` (**local only**) |
 
-Bad input is refused, not guessed at: a missing, NaN or non-positive time, a `failed` other than
-0/1, empty or mismatched lists, or no failures at all return **HTTP 400** with a message (HTTP 422
-for a JSON `null` or `0.5`). See [`app/README.md`](app/README.md#input-validation).
+Bad input is refused, not guessed at: a missing, NaN, infinite or non-positive time, a `failed`
+other than the numbers 0/1 (JSON `true`/`false` are rejected too), a negative or non-finite
+`current_age`, a `plan_hours` that is not > 0, empty or mismatched lists, or no failures at all
+return **HTTP 400** with a message naming the entry. Valid data that cannot be calculated return
+**HTTP 422** ("These data cannot be calculated right now. Please check the data."). No stack
+traces are shown. See [`app/README.md`](app/README.md#input-validation).
 
 On the live server, send the data as JSON:
 
@@ -196,7 +216,9 @@ The statistics live in one plain module, [`app/qc.py`](app/qc.py); the API in
 
 | Function in `app/qc.py` | What it does |
 |---|---|
-| `analyze_fleet(times, failed, plan_hours=100, m=2, estimate_m=False)` | Validates the data, fits \(\hat c\) (and optionally \(\hat m\)), returns every output field above |
+| `analyze_fleet(times, failed, plan_hours=100, m=2, estimate_m=False, current_age=0, strict=False)` | Validates every input first, fits \(\hat c\) (and optionally \(\hat m\)), returns every output field above |
+| `conditional_reliability(current_age, plan_hours, c, m)` | \(R(a+p)/R(a)\) in log space; equals `weibull_reliability(plan_hours)` at age 0 |
+| `reliability_decision(reliability)` | The single 90% rule: `call`, `decision_message`, `meets_threshold` |
 | `fit_weibull_scale(times, failed, m=2)` | Censored maximum-likelihood estimate of \(\hat c\) with known shape *m*; errors if *r* = 0 |
 | `fit_weibull_mle(times, failed)` | Joint free-*m* MLE; needs *r* ≥ 2 |
 | `imr_chart(values)` | Individuals–moving-range limits and out-of-control flags |
