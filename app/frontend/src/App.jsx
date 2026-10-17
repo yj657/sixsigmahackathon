@@ -1788,7 +1788,7 @@ export default function App() {
         </nav>
       </header>
 
-      <div className="shell">
+      <div className={nav === 'help' ? 'shell shell-wide' : 'shell'}>
         {nav === 'check' && (
           <CheckPage
             api={api}
