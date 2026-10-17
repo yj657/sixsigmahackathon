@@ -14,6 +14,7 @@ a tool that helps technicians track wear-and-tear and improve reliability.
 | **Track** | On-campus (24 hours) |
 | **Repo** | https://github.com/yj657/sixsigmahackathon |
 | **Live UI** | https://connect.systems-apps.com/content/a7bfcdd7-6564-45cb-b74e-09128cde8a93 |
+| **User guide** | [`USER_GUIDE.md`](USER_GUIDE.md) — how to use the live UI, step by step |
 | **Live API** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe |
 | **API docs** | https://connect.systems-apps.com/content/61dce257-81d0-44e8-84c4-c10cfeae1bbe/docs |
 | **Technician UI** | React app in [`app/frontend/`](app/frontend/) — see [below](#technician-ui-react) |
