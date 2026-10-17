@@ -1403,44 +1403,23 @@ function HistoryPage() {
   )
 }
 
-function CheckPage({ api, check, setCheck }) {
+function CheckPage({ api, check, setCheck, onOpenHelp }) {
   const active = CHECKS.find((c) => c.id === check) || CHECKS[0]
 
   return (
     <>
-      <header className="top">
+      <header className="top top-compact">
         <div className="hero">
-          <p className="audience">For fleet maintenance technicians</p>
           <h1>Service before the next mission — or ok to fly?</h1>
-          <p className="lede">
-            Log each drone&apos;s flight hours and whether it failed (include drones still flying).
-            The desk returns a clear call: <strong>maintain now</strong> or{' '}
-            <strong>ok to fly</strong>.
+          <p className="lede lede-compact">
+            Enter hours and failures, then Run.{' '}
+            <button type="button" className="footer-link" onClick={onOpenHelp}>
+              How to use
+            </button>
           </p>
         </div>
         <ApiBadge api={api} />
       </header>
-
-      <ol className="howto" aria-label="How to use this desk">
-        <li>
-          <span className="howto-num">1</span>
-          <span>
-            <strong>Pick a check</strong> — start with “Should we service now?”
-          </span>
-        </li>
-        <li>
-          <span className="howto-num">2</span>
-          <span>
-            <strong>Load a sample</strong> or paste your hours, then press Run
-          </span>
-        </li>
-        <li>
-          <span className="howto-num">3</span>
-          <span>
-            <strong>Read the popup</strong> — the decision and the numbers behind it
-          </span>
-        </li>
-      </ol>
 
       <nav className="tabs" aria-label="Which check to run">
         {CHECKS.map((c) => (
@@ -1514,7 +1493,14 @@ export default function App() {
       </header>
 
       <div className="shell">
-        {nav === 'check' && <CheckPage api={api} check={check} setCheck={setCheck} />}
+        {nav === 'check' && (
+          <CheckPage
+            api={api}
+            check={check}
+            setCheck={setCheck}
+            onOpenHelp={() => goNav('help')}
+          />
+        )}
         {nav === 'history' && <HistoryPage key={nav} />}
         {nav === 'help' && (
           <ManualPage

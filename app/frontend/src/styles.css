@@ -168,6 +168,15 @@ body {
   margin-bottom: 1.75rem;
 }
 
+.top-compact {
+  margin-bottom: 1.15rem;
+}
+
+.lede-compact {
+  max-width: none;
+  font-size: 0.95rem;
+}
+
 @media (min-width: 640px) {
   .top {
     grid-template-columns: 1fr auto;
