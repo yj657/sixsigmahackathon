@@ -86,6 +86,33 @@ function InfoTip({ topic, text }) {
   )
 }
 
+// A form label with its explanation behind an info icon (kept outside <label> so the icon is
+// its own control).
+function FieldLabel({ htmlFor, children, topic, info }) {
+  return (
+    <div className="field-head">
+      <label htmlFor={htmlFor}>{children}</label>
+      <InfoTip topic={topic} text={info} />
+    </div>
+  )
+}
+
+// Sample buttons show only the sample name; the description is behind an info icon.
+function SampleChips({ samples, onLoad, ariaLabel }) {
+  return (
+    <div className="samples" role="group" aria-label={ariaLabel}>
+      {Object.entries(samples).map(([key, s]) => (
+        <div key={key} className="chip-wrap">
+          <button type="button" className="chip" onClick={() => onLoad(key)}>
+            <span className="chip-label">{s.label}</span>
+          </button>
+          <InfoTip topic={`${s.label} sample`} text={s.blurb} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Stat({ label, abbr, value, unit, info }) {
   return (
     <div>
@@ -272,24 +299,17 @@ function WeibullPage({ estimateM, api }) {
 
   return (
     <>
-      <div className="samples" role="group" aria-label="Load a demo dataset">
-        {Object.entries(SAMPLES).map(([key, s]) => (
-          <button key={key} type="button" className="chip" onClick={() => loadSample(key)}>
-            <span className="chip-label">{s.label}</span>
-            <span className="chip-blurb">{s.blurb}</span>
-          </button>
-        ))}
-      </div>
+      <SampleChips samples={SAMPLES} onLoad={loadSample} ariaLabel="Load a demo dataset" />
 
       <form className="panel" onSubmit={onAnalyze}>
         <div className="fields">
-          <label htmlFor="times">
+          <FieldLabel
+            htmlFor="times"
+            topic="Flight hours per drone"
+            info="One number per drone, separated by commas: hours at failure, or hours so far if it is still flying."
+          >
             Flight hours per drone (time_hours)
-            <span className="hint">
-              One number per drone, separated by commas: hours at failure, or hours so far if it is
-              still flying.
-            </span>
-          </label>
+          </FieldLabel>
           <textarea
             id="times"
             rows={2}
@@ -298,12 +318,13 @@ function WeibullPage({ estimateM, api }) {
             spellCheck={false}
           />
 
-          <label htmlFor="failed">
+          <FieldLabel
+            htmlFor="failed"
+            topic="Did it fail?"
+            info="Same order as above: 1 = failed, 0 = still flying or removed without failing."
+          >
             Did it fail? (failed)
-            <span className="hint">
-              Same order as above: 1 = failed, 0 = still flying or removed without failing.
-            </span>
-          </label>
+          </FieldLabel>
           <textarea
             id="failed"
             rows={2}
@@ -312,10 +333,13 @@ function WeibullPage({ estimateM, api }) {
             spellCheck={false}
           />
 
-          <label htmlFor="plan">
+          <FieldLabel
+            htmlFor="plan"
+            topic="Planned flight hours before next service"
+            info="How long the fleet should fly before it is serviced, in hours."
+          >
             Planned flight hours before next service (plan_hours)
-            <span className="hint">How long the fleet should fly before it is serviced, in hours.</span>
-          </label>
+          </FieldLabel>
           <input
             id="plan"
             type="number"
@@ -426,7 +450,6 @@ function WeibullPage({ estimateM, api }) {
             planHours={result.plan_hours}
             B10={result.B10}
           />
-          <p className="curve-caption">Line: 90% · mark: planned hours · dot: 10% failure age</p>
         </section>
       )}
     </>
@@ -466,23 +489,17 @@ function ImrPage({ api }) {
 
   return (
     <>
-      <div className="samples" role="group" aria-label="Load an I-MR sample">
-        {Object.entries(IMR_SAMPLES).map(([key, s]) => (
-          <button key={key} type="button" className="chip" onClick={() => loadSample(key)}>
-            <span className="chip-label">{s.label}</span>
-            <span className="chip-blurb">{s.blurb}</span>
-          </button>
-        ))}
-      </div>
+      <SampleChips samples={IMR_SAMPLES} onLoad={loadSample} ariaLabel="Load an I-MR sample" />
 
       <form className="panel" onSubmit={onRun}>
         <div className="fields">
-          <label htmlFor="values">
+          <FieldLabel
+            htmlFor="values"
+            topic="Hours flown per mission"
+            info="One number per mission, in the order the missions were flown, separated by commas."
+          >
             Hours flown per mission
-            <span className="hint">
-              One number per mission, in the order the missions were flown, separated by commas.
-            </span>
-          </label>
+          </FieldLabel>
           <textarea
             id="values"
             rows={2}
@@ -565,7 +582,6 @@ function ImrPage({ api }) {
             lcl={result.moving_range.lcl}
             valueKey="mr"
           />
-          <p className="curve-caption">Red points: outside the limits, worth checking.</p>
         </section>
       )}
     </>
@@ -589,12 +605,13 @@ export default function App() {
       <header className="top">
         <div>
           <p className="brand">kskbl</p>
-          <h1>Fleet reliability desk</h1>
-          <p className="lede">
-            Enter each drone's flight hours and whether it failed (including drones still flying)
-            to see whether the fleet should be serviced before its next block of flying. Start
-            with the maintenance check; the other two pages are extra checks.
-          </p>
+          <h1 className="title-with-info">
+            Fleet reliability desk
+            <InfoTip
+              topic="Fleet reliability desk"
+              text="Enter each drone's flight hours and whether it failed (including drones still flying) to see whether the fleet should be serviced before its next block of flying. Start with the maintenance check; the other two pages are extra checks."
+            />
+          </h1>
         </div>
         <ApiBadge api={api} />
       </header>
@@ -609,12 +626,14 @@ export default function App() {
             aria-current={page === p.id ? 'page' : undefined}
           >
             <span className="tab-label">{p.label}</span>
-            <span className="tab-blurb">{p.blurb}</span>
           </button>
         ))}
       </nav>
 
-      <p className="page-note">{active.blurb}</p>
+      <h2 className="page-title title-with-info">
+        {active.label}
+        <InfoTip topic={active.label} text={active.blurb} />
+      </h2>
 
       {page === 'fixed' && <WeibullPage estimateM={false} api={api} />}
       {page === 'free' && <WeibullPage estimateM={true} api={api} />}

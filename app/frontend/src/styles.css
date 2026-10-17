@@ -81,13 +81,6 @@ h1 {
   line-height: 1.1;
 }
 
-.lede {
-  margin: 0;
-  max-width: 48ch;
-  color: var(--muted);
-  font-size: 1.02rem;
-}
-
 .api {
   margin: 0;
   padding: 0.75rem 0.9rem;
@@ -155,19 +148,6 @@ h1 {
   font-size: 0.92rem;
 }
 
-.tab-blurb {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.page-note {
-  margin: 0 0 1rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 .imr-block {
   margin-bottom: 1.25rem;
 }
@@ -231,13 +211,6 @@ h1 {
   font-size: 0.9rem;
 }
 
-.chip-blurb {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
 .panel {
   padding: 1.25rem;
   border: 1px solid var(--line);
@@ -270,12 +243,6 @@ label {
   font-weight: 600;
   font-size: 0.9rem;
   margin-top: 0.35rem;
-}
-
-.hint {
-  font-weight: 400;
-  font-size: 0.78rem;
-  color: var(--muted);
 }
 
 textarea,
@@ -444,11 +411,42 @@ input:focus {
   font-weight: 400;
 }
 
-/* Info icon + tooltip. The tooltip is positioned under the metric label or chart heading,
-   spanning its width, so it never runs off the screen. */
+/* Info icon + tooltip. The tooltip opens under its label, title or sample, spanning that
+   width, so it never runs off the screen. */
 .stats dt,
-.chart-head {
+.chart-head,
+.field-head,
+.chip-wrap,
+.title-with-info {
   position: relative;
+}
+
+/* Label + info icon on one line above each input. */
+.field-head {
+  display: flex;
+  align-items: baseline;
+  margin-top: 0.35rem;
+}
+
+.field-head label {
+  margin-top: 0;
+}
+
+/* Sample button with its info icon beside it. */
+.chip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.chip-wrap .chip {
+  flex: 1;
+}
+
+.page-title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .chart-head {

@@ -45,7 +45,8 @@ curve. If something is wrong with the input, a red message explains what to fix.
 ## 4. Reading the results
 
 Each result is shown with a plain name, the technical name in brackets, and its units. For a
-short explanation, **hover over the small ⓘ icon** next to a result or chart title. You can also
+short explanation, **hover over the small ⓘ icon** next to a result, chart title, input field,
+sample or page title (explanations stay hidden until you ask for them). You can also
 **Tab** to the icon with the keyboard, or **click/tap** it to keep the explanation open; press
 **Escape** or click elsewhere to close it.
 
