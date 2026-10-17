@@ -1007,7 +1007,8 @@ const CONTRIBUTORS = [
     id: 'percy',
     name: 'Percy Qian',
     role: 'Statistics, API, deploy, UI',
-    photo: '/contributors/percy.jpg',
+    // Relative path: Connect serves under /content/<guid>/, so "/contributors/..." 404s.
+    photo: './contributors/percy.jpg',
     initials: 'PQ',
   },
   {
@@ -1027,16 +1028,20 @@ const CONTRIBUTORS = [
 ]
 
 function ContributorCard({ person }) {
+  const [photoFailed, setPhotoFailed] = useState(false)
+  const showPhoto = person.photo && !photoFailed
+
   return (
     <article className="person-card">
       <div className="person-photo-wrap">
-        {person.photo ? (
+        {showPhoto ? (
           <img
             className="person-photo"
             src={person.photo}
             alt={`${person.name}, team kskbl`}
             width={280}
             height={280}
+            onError={() => setPhotoFailed(true)}
           />
         ) : (
           <div className="person-photo person-photo-fallback" aria-hidden="true">
